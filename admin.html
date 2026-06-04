@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Адмінка — Варіанти</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <main class="shell">
+    <div class="eyebrow">Party Game</div>
+    <h1>Адмінка</h1>
+
+    <section class="card narrow" id="loginCard">
+      <h2>Вхід для ведучої</h2>
+      <input id="adminPassword" type="password" placeholder="Пароль адмінки" />
+      <button id="loginBtn">Увійти</button>
+      <p id="loginMsg" class="error"></p>
+    </section>
+
+    <section class="card narrow hidden" id="createCard">
+      <h2>Створити гру</h2>
+      <input id="gameTitle" placeholder="Назва гри" value="Гра Варіанти" />
+      <input id="gamePassword" placeholder="Пароль для гравців" value="game123" />
+      <button id="createGameBtn">Створити гру</button>
+    </section>
+
+    <section class="card hidden" id="gameCard">
+      <h2 id="gameName">Гра</h2>
+      <p class="muted">Інвайт для гравців:</p>
+      <div class="invite" id="inviteLink"></div>
+
+      <div class="actions">
+        <button data-phase="lobby">Лобі</button>
+        <button data-phase="question_preview">Показати питання</button>
+        <button data-phase="answering">Почати відповіді</button>
+        <button data-phase="voting">Почати голосування</button>
+        <button data-phase="results">Результати</button>
+        <button data-phase="finished" class="danger">Завершити</button>
+      </div>
+
+      <h2>Гравці</h2>
+      <div id="playersList"></div>
+    </section>
+  </main>
+
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>
