@@ -10,18 +10,23 @@ const gameCard = document.getElementById('gameCard');
 
 document.getElementById('loginBtn').onclick = () => {
   const pass = document.getElementById('adminPassword').value.trim();
+
   if (pass !== ADMIN_PASSWORD) {
     document.getElementById('loginMsg').textContent = 'Неправильний пароль';
     return;
   }
+
   localStorage.setItem('admin_ok', '1');
-  loginCard.classList.add('hidden');
-  createCard.classList.remove('hidden');
+  loginCard.hidden = true;
+  createCard.hidden = false;
+
+  restoreLastGame();
 };
 
 if (localStorage.getItem('admin_ok') === '1') {
-  loginCard.classList.add('hidden');
-  createCard.classList.remove('hidden');
+  loginCard.hidden = true;
+  createCard.hidden = false;
+  restoreLastGame();
 }
 
 document.getElementById('createGameBtn').onclick = async () => {
@@ -52,14 +57,20 @@ document.getElementById('createGameBtn').onclick = async () => {
 
   localStorage.setItem('game_password_' + data.id, password);
   localStorage.setItem('current_game_id', data.id);
-openGame(data);
+
+  openGame(data);
+};
 
 function openGame(game) {
   currentGame = game;
-  createCard.classList.add('hidden');
-  gameCard.classList.remove('hidden');
+
+  createCard.hidden = true;
+  gameCard.hidden = false;
+
   document.getElementById('gameName').textContent = game.title;
-  document.getElementById('inviteLink').textContent = `${location.origin}/game.html?code=${game.invite_code}`;
+  document.getElementById('inviteLink').textContent =
+    `${location.origin}/game.html?code=${game.invite_code}`;
+
   subscribe(game.id);
   renderPlayers();
 }
@@ -94,33 +105,71 @@ async function renderPlayers() {
 document.querySelectorAll('[data-phase]').forEach(btn => {
   btn.onclick = async () => {
     if (!currentGame) return;
+
     const phase = btn.dataset.phase;
     const update = { phase };
 
-    if (phase === 'answering') update.answer_deadline = Math.floor(Date.now() / 1000) + 60;
-    if (phase === 'voting') update.vote_deadline = Math.floor(Date.now() / 1000) + 45;
+    if (phase === 'answering') {
+      update.answer_deadline = Math.floor(Date.now() / 1000) + 60;
+    }
 
-    const { error } = await supabase.from('games').update(update).eq('id', currentGame.id);
-    if (error) alert(error.message);
+    if (phase === 'voting') {
+      update.vote_deadline = Math.floor(Date.now() / 1000) + 45;
+    }
+
+    const { error } = await supabase
+      .from('games')
+      .update(update)
+      .eq('id', currentGame.id);
+
+    if (error) {
+      alert(error.message);
+    }
   };
 });
 
 function subscribe(gameId) {
-  if (channel) supabase.removeChannel(channel);
+  if (channel) {
+    supabase.removeChannel(channel);
+  }
 
   channel = supabase
     .channel('admin-game-' + gameId)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: 'game_id=eq.' + gameId }, renderPlayers)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: 'id=eq.' + gameId }, payload => {
-      currentGame = payload.new;
-    })
-    .subscribe(status => console.log('admin realtime', status));
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'players',
+        filter: 'game_id=eq.' + gameId
+      },
+      () => {
+        renderPlayers();
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'games',
+        filter: 'id=eq.' + gameId
+      },
+      payload => {
+        currentGame = payload.new;
+      }
+    )
+    .subscribe(status => {
+      console.log('admin realtime', status);
+    });
 }
 
-  async function restoreLastGame() {
+async function restoreLastGame() {
   const gameId = localStorage.getItem('current_game_id');
 
-  if (!gameId || localStorage.getItem('admin_ok') !== '1') return;
+  if (!gameId || localStorage.getItem('admin_ok') !== '1') {
+    return;
+  }
 
   const { data, error } = await supabase
     .from('games')
@@ -128,9 +177,9 @@ function subscribe(gameId) {
     .eq('id', gameId)
     .single();
 
-  if (error || !data) return;
+  if (error || !data) {
+    return;
+  }
 
   openGame(data);
 }
-
-restoreLastGame();
