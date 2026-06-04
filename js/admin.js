@@ -8,6 +8,16 @@ const loginCard = document.getElementById('loginCard');
 const createCard = document.getElementById('createCard');
 const gameCard = document.getElementById('gameCard');
 
+function show(el) {
+  el.hidden = false;
+  el.classList.remove('hidden');
+}
+
+function hide(el) {
+  el.hidden = true;
+  el.classList.add('hidden');
+}
+
 document.getElementById('loginBtn').onclick = () => {
   const pass = document.getElementById('adminPassword').value.trim();
 
@@ -17,16 +27,20 @@ document.getElementById('loginBtn').onclick = () => {
   }
 
   localStorage.setItem('admin_ok', '1');
-  loginCard.hidden = true;
-  createCard.hidden = false;
+  hide(loginCard);
+  show(createCard);
 
   restoreLastGame();
 };
 
 if (localStorage.getItem('admin_ok') === '1') {
-  loginCard.hidden = true;
-  createCard.hidden = false;
+  hide(loginCard);
+  show(createCard);
   restoreLastGame();
+} else {
+  show(loginCard);
+  hide(createCard);
+  hide(gameCard);
 }
 
 document.getElementById('createGameBtn').onclick = async () => {
@@ -64,8 +78,9 @@ document.getElementById('createGameBtn').onclick = async () => {
 function openGame(game) {
   currentGame = game;
 
-  createCard.hidden = true;
-  gameCard.hidden = false;
+  hide(loginCard);
+  hide(createCard);
+  show(gameCard);
 
   document.getElementById('gameName').textContent = game.title;
   document.getElementById('inviteLink').textContent =
