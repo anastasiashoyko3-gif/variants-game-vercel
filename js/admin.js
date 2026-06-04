@@ -51,8 +51,8 @@ document.getElementById('createGameBtn').onclick = async () => {
   }
 
   localStorage.setItem('game_password_' + data.id, password);
-  openGame(data);
-};
+  localStorage.setItem('current_game_id', data.id);
+openGame(data);
 
 function openGame(game) {
   currentGame = game;
@@ -116,3 +116,21 @@ function subscribe(gameId) {
     })
     .subscribe(status => console.log('admin realtime', status));
 }
+
+  async function restoreLastGame() {
+  const gameId = localStorage.getItem('current_game_id');
+
+  if (!gameId || localStorage.getItem('admin_ok') !== '1') return;
+
+  const { data, error } = await supabase
+    .from('games')
+    .select('*')
+    .eq('id', gameId)
+    .single();
+
+  if (error || !data) return;
+
+  openGame(data);
+}
+
+restoreLastGame();
