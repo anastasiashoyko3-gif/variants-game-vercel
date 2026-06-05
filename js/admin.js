@@ -447,22 +447,6 @@ function buildFinalTableHtml(){
   `;
 }
 
-function renderFinishedAdminScreen(){
-  $('adminState').innerHTML=buildFinalTableHtml();
-  $('revealPanel').innerHTML='';
-  $('nextHint').textContent='Гра завершена';
-  $('nextStageBtn').disabled=true;
-  $('nextStageBtn').textContent='Гра завершена';
-  $('scoreBoard').innerHTML=players.length
-    ? [...players].sort((a,b)=>Number(b.score||0)-Number(a.score||0)).map((p,i)=>`
-      <div class="scoreCard rank${i+1}">
-        <div class="avatarLine">${avatarHtml(p,'big')}<div><b>${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1+'.'} ${escapeHtml(p.name)}</b><p class="muted">${i===0?'Переможець':i===1?'Друге місце':i===2?'Третє місце':'Учасник'}</p></div></div>
-        <div class="scorePoints">${p.score||0}</div>
-      </div>
-    `).join('')
-    : '<p class="muted">Поки немає балів.</p>';
-}
-
 
 
 function finalTableRowsHtml(){
