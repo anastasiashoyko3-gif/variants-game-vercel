@@ -518,3 +518,5 @@ function renderFinishedAdminScreen(){
     nextBtn.textContent='Гра завершена';
   }
 }
+
+// fixed renderAll
