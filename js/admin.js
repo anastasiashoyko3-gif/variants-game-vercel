@@ -4,7 +4,7 @@ import {
   shuffle, safeJson, uploadPublicFile
 } from './supabaseClient.js';
 
-const ADMIN_PASSWORD = 'admin123';
+const ADMIN_PASSWORD = 'Yfcnz3110';
 
 let currentGame=null, games=[], sets=[], questions=[], players=[], answers=[], votes=[], channel=null, loading=false;
 
