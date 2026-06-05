@@ -185,14 +185,6 @@ function renderAll(){
   renderNextHint();
 }
 
-  $('nextStageBtn').disabled=false;
-  $('nextStageBtn').textContent='Наступний етап';
-
-  renderAdminState();
-  renderRevealPanel();
-  renderNextHint();
-}
-
 function renderPlayers(){
   $('playersList').innerHTML=players.length?players.map(p=>`<div class="playerRow"><div class="avatarLine">${avatarHtml(p)}<b>${escapeHtml(p.name)}</b></div><b>${p.score||0}</b></div>`).join(''):'<p class="muted">Гравців ще немає.</p>';
 }
