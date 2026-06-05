@@ -519,4 +519,3 @@ function renderFinishedAdminScreen(){
   }
 }
 
-// fixed renderAll
