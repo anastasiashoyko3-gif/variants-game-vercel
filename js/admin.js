@@ -1,3 +1,4 @@
+// renderAll fixed
 import {
   supabase, makeCode, escapeHtml, avatarHtml, hostAvatarHtml,
   TOTAL_QUESTIONS, ANSWER_SECONDS, VOTE_SECONDS, roundNo, nowSec,
