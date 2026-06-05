@@ -379,7 +379,14 @@ async function updateGame(update){const {data,error}=await supabase.from('games'
 async function buildOptions(q){
   const {data:allAnswers}=await supabase.from('answers').select('*').eq('question_id',q.id);
   const opts=[];(allAnswers||[]).forEach(a=>opts.push({id:`p_${a.player_id}`,type:'player',text:a.text,player_id:a.player_id}));
-  if(q.correct_answer)opts.push({id:'correct',type:'correct',text:q.correct_answer,player_id:null});
+  if(q.round_no !== 2 && q.correct_answer){
+  opts.push({
+    id:'correct',
+    type:'correct',
+    text:q.correct_answer,
+    player_id:null
+  });
+}
   if(q.fake_answer)opts.push({id:'fake',type:'fake',text:q.fake_answer,player_id:null});
   const {error}=await supabase.from('questions').update({options_json:JSON.stringify(shuffle(opts)),revealed_json:'[]'}).eq('id',q.id);if(error)alert(error.message);
 }
