@@ -596,7 +596,9 @@ function leftSec(deadline){if(!deadline)return 0;return Math.max(0,Number(deadli
 setInterval(()=>{
   if(!currentGame)return;
   const timedPhases=['answering','voting','word_round1_timer','word_draw_timer','word_words_timer'];
-  if(timedPhases.includes(currentGame.phase))renderAdminState();
+  if(!timedPhases.includes(currentGame.phase))return;
+  if(isLettersGame())renderLettersAdminState();
+  else renderAdminState();
 },1000);
 
 function teamNames(){

@@ -60,7 +60,16 @@ async function findGameByInviteCode(code){
 
   const {data,error}=await supabase.from('games').select('*');
   if(error)return null;
-  return (data||[]).find(item=>normalizeInviteCode(item.invite_code)===normalized)||null;
+  const localMatch=(data||[]).find(item=>normalizeInviteCode(item.invite_code)===normalized);
+  if(localMatch)return localMatch;
+
+  try{
+    const res=await fetch(`/api/public-game?code=${encodeURIComponent(normalized)}`);
+    const json=await res.json().catch(()=>({}));
+    return res.ok ? json.data : null;
+  }catch{
+    return null;
+  }
 }
 
 async function refreshState(){
@@ -250,7 +259,18 @@ function scoreHtml(){const arr=[...players].sort((a,b)=>Number(b.score||0)-Numbe
 function timerHtml(left){return `<div class="timer" id="timerBox">${Math.max(0,left)} сек</div>`}
 function pauseHtml(left,text){return `<div class="pausePanel"><div class="pauseIcon">Ⅱ</div><h2>Пауза</h2><p class="muted">${escapeHtml(text)}</p><div class="timer">${Math.max(0,left)} сек залишилось</div></div>`}
 function deadlineLeft(deadline){return deadline?Math.max(0,Number(deadline)-nowSec()):0}
-function startTimer(){const box=$('timerBox');if(!box)return;const tick=()=>{const deadline=game.phase==='voting'?game.vote_deadline:game.answer_deadline;const left=deadlineLeft(deadline);box.textContent=`${left} сек`;if(left<=0)setTimeout(refreshState,250)};tick();timerInterval=setInterval(tick,1000)}
+function startTimer(){
+  const box=$('timerBox');
+  if(!box)return;
+  const tick=()=>{
+    const deadline=game.phase==='voting'?game.vote_deadline:game.answer_deadline;
+    const left=deadlineLeft(deadline);
+    box.textContent=`${left} сек`;
+    if(left<=0)clearInterval(timerInterval);
+  };
+  tick();
+  timerInterval=setInterval(tick,1000);
+}
 
 function wordConfig(){
   return safeJson(game?.word_config_json,{round:1,categories:[],drawWords:[],usedDrawIndexes:[],letters9:[],teams:[]});

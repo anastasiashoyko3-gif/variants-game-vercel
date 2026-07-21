@@ -59,7 +59,16 @@ async function findGameByInviteCode(code){
 
   const {data,error}=await supabase.from('games').select('*');
   if(error)return null;
-  return (data||[]).find(item=>normalizeInviteCode(item.invite_code)===normalized)||null;
+  const localMatch=(data||[]).find(item=>normalizeInviteCode(item.invite_code)===normalized);
+  if(localMatch)return localMatch;
+
+  try{
+    const res=await fetch(`/api/public-game?code=${encodeURIComponent(normalized)}`);
+    const json=await res.json().catch(()=>({}));
+    return res.ok ? json.data : null;
+  }catch{
+    return null;
+  }
 }
 
 function openViewerScreen(){
@@ -241,7 +250,7 @@ function startTimer(){
     const deadline=game.phase==='voting'?game.vote_deadline:game.answer_deadline;
     const left=deadlineLeft(deadline);
     box.textContent=`${left} ÑÐµÐº`;
-    if(left<=0)setTimeout(refreshState,250);
+    if(left<=0)clearInterval(timerInterval);
   };
   tick();
   timerInterval=setInterval(tick,1000);
