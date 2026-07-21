@@ -87,13 +87,15 @@ select{width:100%;border:1px solid #e0cfee;background:#f3f7ff;border-radius:18px
 .letterTiles{grid-template-columns:repeat(9,minmax(36px,1fr));align-items:center}
 .letterTiles span{display:flex;align-items:center;justify-content:center;aspect-ratio:1;border-radius:18px;background:#fff;border:2px solid var(--line);font-size:clamp(26px,4vw,54px);font-weight:950;box-shadow:0 12px 30px rgba(94,65,135,.1)}
 .paperGrid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
-.paperBall{min-height:104px;border-radius:35% 48% 42% 30%;background:#ffd36e;color:#4b2c07;transform:rotate(-3deg);border:0;box-shadow:0 16px 30px rgba(94,65,135,.16);font-weight:950}
+.paperBall{position:relative;min-height:104px;border-radius:35% 48% 42% 30%;background:#ffd36e;color:#4b2c07;transform:rotate(-3deg);border:0;box-shadow:0 16px 30px rgba(94,65,135,.16);font-weight:950;overflow:hidden}
+.paperBall::before{content:"";position:absolute;inset:14px 16px;background:linear-gradient(135deg,transparent 0 38%,rgba(255,255,255,.34) 39% 43%,transparent 44% 100%),linear-gradient(45deg,transparent 0 46%,rgba(92,55,12,.13) 47% 50%,transparent 51% 100%);border-radius:45% 34% 42% 38%;transform:rotate(9deg)}
+.paperBall::after{content:"";position:absolute;width:42%;height:42%;right:8px;top:10px;border-radius:50%;background:rgba(255,255,255,.22);box-shadow:-28px 34px 0 rgba(92,55,12,.08)}
 .paperBall.paper1{background:#ff9fc2;transform:rotate(4deg)}
 .paperBall.paper2{background:#9fe7ff;transform:rotate(-6deg)}
 .paperBall.paper3{background:#a8f0be;transform:rotate(3deg)}
 .paperBall.paper4{background:#cbb2ff;transform:rotate(-2deg)}
 .paperBall.paper5{background:#ffc49f;transform:rotate(6deg)}
-.paperBall.used{opacity:.55;filter:grayscale(.25);text-decoration:line-through}
+.paperBall.used{opacity:.55;filter:grayscale(.25)}
 .secretWord,.turnBox{background:#fff;border:2px solid var(--violet);border-radius:22px;padding:18px;margin:14px 0;font-size:22px;font-weight:900}
 .turnBox{display:flex;align-items:center;gap:10px;border-color:#e8d5a8;background:#fffdf3}
 .teamScore{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px;margin:10px 0}

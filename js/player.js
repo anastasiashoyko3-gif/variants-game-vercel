@@ -4,7 +4,7 @@ let game=null, player=null, questions=[], currentQuestion=null, players=[], answ
 const $=id=>document.getElementById(id);
 const joinCard=$('joinCard'), playCard=$('playCard'), stateBox=$('gameState');
 
-const urlCode=new URLSearchParams(location.search).get('code')?.trim()||'';
+const urlCode=readInviteCode();
 $('joinBtn').onclick=joinGame;
 $('leaveBtn').onclick=()=>{localStorage.removeItem('player_game_id');localStorage.removeItem('player_id');location.reload()};
 restorePlayerSession();
@@ -22,8 +22,8 @@ async function joinGame(){
   if(!code){$('joinMsg').textContent='Відкрий гру через інвайт-посилання від ведучої.';return}
   if(!name||!pin||!password){$('joinMsg').textContent='Заповни імʼя, PIN і пароль';return}
   try{if(file)avatar=await uploadPublicFile(file,'player-avatars')}catch(e){$('joinMsg').textContent='Фото не завантажилось: '+e.message;return}
-  const {data:foundGame,error:gameErr}=await supabase.from('games').select('*').eq('invite_code',code).single();
-  if(gameErr||!foundGame){$('joinMsg').textContent='Гру не знайдено';return}
+  const foundGame=await findGameByInviteCode(code);
+  if(!foundGame){$('joinMsg').textContent=`Гру не знайдено. Код із посилання: ${code}. Скопіюй нове посилання з адмінки.`;return}
   if(password!==(foundGame.game_password||'game123')){$('joinMsg').textContent='Неправильний пароль гри';return}
   game=foundGame;
   const {data:existing}=await supabase.from('players').select('*').eq('game_id',game.id).ilike('name',name).eq('pin',pin).maybeSingle();
@@ -36,6 +36,31 @@ async function joinGame(){
   localStorage.setItem('player_game_id',game.id);localStorage.setItem('player_id',player.id);
   joinCard.classList.add('hidden');playCard.classList.remove('hidden');$('meName').textContent=player.name;
   await refreshState();subscribe();
+}
+
+function readInviteCode(){
+  const params=new URLSearchParams(location.search);
+  const raw=params.get('code')||params.get('game')||'';
+  return normalizeInviteCode(raw);
+}
+
+function normalizeInviteCode(value){
+  return String(value||'').trim().replace(/[^a-z0-9]/gi,'').toUpperCase();
+}
+
+async function findGameByInviteCode(code){
+  const normalized=normalizeInviteCode(code);
+  if(!normalized)return null;
+
+  const exact=await supabase.from('games').select('*').eq('invite_code',normalized).maybeSingle();
+  if(!exact.error&&exact.data)return exact.data;
+
+  const insensitive=await supabase.from('games').select('*').ilike('invite_code',normalized).maybeSingle();
+  if(!insensitive.error&&insensitive.data)return insensitive.data;
+
+  const {data,error}=await supabase.from('games').select('*');
+  if(error)return null;
+  return (data||[]).find(item=>normalizeInviteCode(item.invite_code)===normalized)||null;
 }
 
 async function refreshState(){
@@ -274,7 +299,7 @@ function drawPlayerHtml(cfg){
     <div class="paperGrid">${(cfg.drawWords||[]).map((w,i)=>{
       const used=usedIndexes.includes(i);
       const can=active&&!opened&&!used&&game.phase==='word_draw_pick';
-      return `<button class="paperBall paper${i%6} ${used?'used':''}" ${can?`onclick="openDrawWord(${i})"`:'disabled'}>${used?'Взято':'Папірчик'}</button>`;
+      return `<button class="paperBall paper${i%6} ${used?'used':''}" ${can?`onclick="openDrawWord(${i})"`:'disabled'} aria-label="${used?'Взятий папірчик':'Закритий папірчик'}" title="${used?'Взято':'Закритий папірчик'}"></button>`;
     }).join('')}</div>
   `;
 }

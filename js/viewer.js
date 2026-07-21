@@ -1,10 +1,10 @@
-import { supabase, escapeHtml, avatarHtml, hostAvatarHtml, nowSec, safeJson } from './supabaseClient.js';
+﻿import { supabase, escapeHtml, avatarHtml, hostAvatarHtml, nowSec, safeJson } from './supabaseClient.js';
 
 let game=null, questions=[], currentQuestion=null, players=[], answers=[], votes=[], wordEvents=[], channel=null, timerInterval=null, pollInterval=null, loading=false, lastSoundKey='';
 const $=id=>document.getElementById(id);
 const joinCard=$('viewerJoinCard'), viewerCard=$('viewerCard'), stateBox=$('viewerState');
 
-const urlCode=new URLSearchParams(location.search).get('code');
+const urlCode=readInviteCode();
 if(urlCode)$('viewerInviteCode').value=urlCode;
 $('viewerJoinBtn').onclick=joinAsViewer;
 $('viewerLeaveBtn').onclick=()=>{localStorage.removeItem('viewer_game_id');location.reload()};
@@ -26,15 +26,40 @@ async function restoreViewerSession(){
 
 async function joinAsViewer(){
   unlockSound();
-  const code=$('viewerInviteCode').value.trim();
-  if(!code){$('viewerJoinMsg').textContent='Введи код гри';return}
-  const {data,error}=await supabase.from('games').select('*').eq('invite_code',code).single();
-  if(error||!data){$('viewerJoinMsg').textContent='Гру не знайдено';return}
-  game=data;
+  const code=readInviteCode($('viewerInviteCode').value);
+  if(!code){$('viewerJoinMsg').textContent='Ð’Ð²ÐµÐ´Ð¸ ÐºÐ¾Ð´ Ð³Ñ€Ð¸';return}
+  const foundGame=await findGameByInviteCode(code);
+  if(!foundGame){$('viewerJoinMsg').textContent=`Гру не знайдено. Код із посилання: ${code}. Скопіюй нове посилання з адмінки.`;return}
+  game=foundGame;
   localStorage.setItem('viewer_game_id',game.id);
   openViewerScreen();
   await refreshState();
   subscribe();
+}
+
+function readInviteCode(fallback=''){
+  const params=new URLSearchParams(location.search);
+  const raw=params.get('code')||params.get('game')||fallback||'';
+  return normalizeInviteCode(raw);
+}
+
+function normalizeInviteCode(value){
+  return String(value||'').trim().replace(/[^a-z0-9]/gi,'').toUpperCase();
+}
+
+async function findGameByInviteCode(code){
+  const normalized=normalizeInviteCode(code);
+  if(!normalized)return null;
+
+  const exact=await supabase.from('games').select('*').eq('invite_code',normalized).maybeSingle();
+  if(!exact.error&&exact.data)return exact.data;
+
+  const insensitive=await supabase.from('games').select('*').ilike('invite_code',normalized).maybeSingle();
+  if(!insensitive.error&&insensitive.data)return insensitive.data;
+
+  const {data,error}=await supabase.from('games').select('*');
+  if(error)return null;
+  return (data||[]).find(item=>normalizeInviteCode(item.invite_code)===normalized)||null;
 }
 
 function openViewerScreen(){
@@ -93,7 +118,7 @@ function subscribe(){
 window.openPhoto=(src)=>{
   const overlay=document.createElement('div');
   overlay.className='photoOverlay';
-  overlay.innerHTML=`<img src="${src}" alt="Фото"><button>×</button>`;
+  overlay.innerHTML=`<img src="${src}" alt="Ð¤Ð¾Ñ‚Ð¾"><button>Ã—</button>`;
   overlay.onclick=()=>overlay.remove();
   document.body.appendChild(overlay);
 };
@@ -115,29 +140,29 @@ function render(){
   }
 
   if(game.phase==='lobby'||game.phase==='setup'){
-    html=`<h2>Лобі</h2><p class="muted">Чекаємо старт гри...</p><div class="lobbyPlayers">${players.length?players.map(p=>`<div class="lobbyPlayer">${avatarHtml(p)}<b>${escapeHtml(p.name)}</b></div>`).join(''):'<p class="muted">Гравців ще немає.</p>'}</div>`;
+    html=`<h2>Ð›Ð¾Ð±Ñ–</h2><p class="muted">Ð§ÐµÐºÐ°Ñ”Ð¼Ð¾ ÑÑ‚Ð°Ñ€Ñ‚ Ð³Ñ€Ð¸...</p><div class="lobbyPlayers">${players.length?players.map(p=>`<div class="lobbyPlayer">${avatarHtml(p)}<b>${escapeHtml(p.name)}</b></div>`).join(''):'<p class="muted">Ð“Ñ€Ð°Ð²Ñ†Ñ–Ð² Ñ‰Ðµ Ð½ÐµÐ¼Ð°Ñ”.</p>'}</div>`;
   }
 
-  if(!currentQuestion&&game.phase!=='lobby')html='<p class="muted">Питання ще не додані.</p>';
-  if(currentQuestion&&game.phase==='question_preview')html=questionHtml()+`<p class="muted">Питання на екрані. Відповіді ще не відкриті.</p>`;
+  if(!currentQuestion&&game.phase!=='lobby')html='<p class="muted">ÐŸÐ¸Ñ‚Ð°Ð½Ð½Ñ Ñ‰Ðµ Ð½Ðµ Ð´Ð¾Ð´Ð°Ð½Ñ–.</p>';
+  if(currentQuestion&&game.phase==='question_preview')html=questionHtml()+`<p class="muted">ÐŸÐ¸Ñ‚Ð°Ð½Ð½Ñ Ð½Ð° ÐµÐºÑ€Ð°Ð½Ñ–. Ð’Ñ–Ð´Ð¿Ð¾Ð²Ñ–Ð´Ñ– Ñ‰Ðµ Ð½Ðµ Ð²Ñ–Ð´ÐºÑ€Ð¸Ñ‚Ñ–.</p>`;
   if(currentQuestion&&game.phase==='answering'){
     const left=deadlineLeft(game.answer_deadline);
-    html=questionHtml()+timerHtml(left)+waitScreenHtml('Гравці пишуть відповіді', answers.length, players.length, 'Відправлено відповідей');
+    html=questionHtml()+timerHtml(left)+waitScreenHtml('Ð“Ñ€Ð°Ð²Ñ†Ñ– Ð¿Ð¸ÑˆÑƒÑ‚ÑŒ Ð²Ñ–Ð´Ð¿Ð¾Ð²Ñ–Ð´Ñ–', answers.length, players.length, 'Ð’Ñ–Ð´Ð¿Ñ€Ð°Ð²Ð»ÐµÐ½Ð¾ Ð²Ñ–Ð´Ð¿Ð¾Ð²Ñ–Ð´ÐµÐ¹');
   }
   if(currentQuestion&&game.phase==='paused_answering'){
-    html=questionHtml()+pauseScreenHtml(Number(game.answer_deadline||0),'Відповіді на паузі');
+    html=questionHtml()+pauseScreenHtml(Number(game.answer_deadline||0),'Ð’Ñ–Ð´Ð¿Ð¾Ð²Ñ–Ð´Ñ– Ð½Ð° Ð¿Ð°ÑƒÐ·Ñ–');
   }
   if(currentQuestion&&game.phase==='preview'){
     const opts=safeJson(currentQuestion.options_json);
-    html=questionHtml()+`<h2>Варіанти</h2><p class="muted">Усі варіанти вже на екрані. Голосування ще не почалося.</p>${opts.map((o,i)=>`<button class="option" disabled>${i+1}. ${escapeHtml(o.text)}</button>`).join('')}`;
+    html=questionHtml()+`<h2>Ð’Ð°Ñ€Ñ–Ð°Ð½Ñ‚Ð¸</h2><p class="muted">Ð£ÑÑ– Ð²Ð°Ñ€Ñ–Ð°Ð½Ñ‚Ð¸ Ð²Ð¶Ðµ Ð½Ð° ÐµÐºÑ€Ð°Ð½Ñ–. Ð“Ð¾Ð»Ð¾ÑÑƒÐ²Ð°Ð½Ð½Ñ Ñ‰Ðµ Ð½Ðµ Ð¿Ð¾Ñ‡Ð°Ð»Ð¾ÑÑ.</p>${opts.map((o,i)=>`<button class="option" disabled>${i+1}. ${escapeHtml(o.text)}</button>`).join('')}`;
   }
   if(currentQuestion&&game.phase==='voting'){
     const left=deadlineLeft(game.vote_deadline), opts=safeJson(currentQuestion.options_json);
-    html=questionHtml()+timerHtml(left)+waitScreenHtml('Гравці голосують', votes.length, players.length, 'Отримано голосів')+`<h2>Голосування</h2>${opts.map((o,i)=>`<button class="option" disabled>${i+1}. ${escapeHtml(o.text)}</button>`).join('')}`;
+    html=questionHtml()+timerHtml(left)+waitScreenHtml('Ð“Ñ€Ð°Ð²Ñ†Ñ– Ð³Ð¾Ð»Ð¾ÑÑƒÑŽÑ‚ÑŒ', votes.length, players.length, 'ÐžÑ‚Ñ€Ð¸Ð¼Ð°Ð½Ð¾ Ð³Ð¾Ð»Ð¾ÑÑ–Ð²')+`<h2>Ð“Ð¾Ð»Ð¾ÑÑƒÐ²Ð°Ð½Ð½Ñ</h2>${opts.map((o,i)=>`<button class="option" disabled>${i+1}. ${escapeHtml(o.text)}</button>`).join('')}`;
   }
   if(currentQuestion&&game.phase==='paused_voting'){
     const opts=safeJson(currentQuestion.options_json);
-    html=questionHtml()+pauseScreenHtml(Number(game.vote_deadline||0),'Голосування на паузі')+`<h2>Голосування</h2>${opts.map((o,i)=>`<button class="option" disabled>${i+1}. ${escapeHtml(o.text)}</button>`).join('')}`;
+    html=questionHtml()+pauseScreenHtml(Number(game.vote_deadline||0),'Ð“Ð¾Ð»Ð¾ÑÑƒÐ²Ð°Ð½Ð½Ñ Ð½Ð° Ð¿Ð°ÑƒÐ·Ñ–')+`<h2>Ð“Ð¾Ð»Ð¾ÑÑƒÐ²Ð°Ð½Ð½Ñ</h2>${opts.map((o,i)=>`<button class="option" disabled>${i+1}. ${escapeHtml(o.text)}</button>`).join('')}`;
   }
   if(currentQuestion&&game.phase==='results'){
     html=questionHtml()+renderResults();
@@ -149,7 +174,7 @@ function render(){
 }
 
 function questionHtml(){
-  return currentQuestion?`<div class="pill">Раунд ${currentQuestion.round_no} · питання ${Number(game.current_q)+1}</div><div class="question">${escapeHtml(currentQuestion.text)}</div>${currentQuestion.photo_url?`<img class="photo clickablePhoto" src="${escapeHtml(currentQuestion.photo_url)}" alt="Фото" onclick="window.openPhoto('${escapeHtml(currentQuestion.photo_url)}')">`:''}`:'';
+  return currentQuestion?`<div class="pill">Ð Ð°ÑƒÐ½Ð´ ${currentQuestion.round_no} Â· Ð¿Ð¸Ñ‚Ð°Ð½Ð½Ñ ${Number(game.current_q)+1}</div><div class="question">${escapeHtml(currentQuestion.text)}</div>${currentQuestion.photo_url?`<img class="photo clickablePhoto" src="${escapeHtml(currentQuestion.photo_url)}" alt="Ð¤Ð¾Ñ‚Ð¾" onclick="window.openPhoto('${escapeHtml(currentQuestion.photo_url)}')">`:''}`:'';
 }
 
 function waitScreenHtml(title, done, total, label){
@@ -168,46 +193,46 @@ function waitScreenHtml(title, done, total, label){
 function pauseScreenHtml(left,title){
   return `
     <div class="viewerWait pausePanel">
-      <div class="pauseIcon">Ⅱ</div>
+      <div class="pauseIcon">â…¡</div>
       <h2>${escapeHtml(title)}</h2>
-      <p class="muted">Ведуча поставила таймер на паузу.</p>
-      <div class="timer">${Math.max(0,left)} сек залишилось</div>
+      <p class="muted">Ð’ÐµÐ´ÑƒÑ‡Ð° Ð¿Ð¾ÑÑ‚Ð°Ð²Ð¸Ð»Ð° Ñ‚Ð°Ð¹Ð¼ÐµÑ€ Ð½Ð° Ð¿Ð°ÑƒÐ·Ñƒ.</p>
+      <div class="timer">${Math.max(0,left)} ÑÐµÐº Ð·Ð°Ð»Ð¸ÑˆÐ¸Ð»Ð¾ÑÑŒ</div>
     </div>
   `;
 }
 
 function renderResults(){
   const opts=safeJson(currentQuestion.options_json), revealed=safeJson(currentQuestion.revealed_json), shown=opts.filter(o=>revealed.includes(o.id));
-  return revealed.length?`<h2>Відкриття відповідей</h2>${shown.map(revealCard).join('')}`:'<h2>Відкриття відповідей</h2><p class="muted">Ведуча відкриває відповіді по черзі.</p>';
+  return revealed.length?`<h2>Ð’Ñ–Ð´ÐºÑ€Ð¸Ñ‚Ñ‚Ñ Ð²Ñ–Ð´Ð¿Ð¾Ð²Ñ–Ð´ÐµÐ¹</h2>${shown.map(revealCard).join('')}`:'<h2>Ð’Ñ–Ð´ÐºÑ€Ð¸Ñ‚Ñ‚Ñ Ð²Ñ–Ð´Ð¿Ð¾Ð²Ñ–Ð´ÐµÐ¹</h2><p class="muted">Ð’ÐµÐ´ÑƒÑ‡Ð° Ð²Ñ–Ð´ÐºÑ€Ð¸Ð²Ð°Ñ” Ð²Ñ–Ð´Ð¿Ð¾Ð²Ñ–Ð´Ñ– Ð¿Ð¾ Ñ‡ÐµÑ€Ð·Ñ–.</p>';
 }
 
 function revealCard(o){
   const voters=votes.filter(v=>v.option_id===o.id).map(v=>players.find(p=>Number(p.id)===Number(v.player_id))).filter(Boolean);
   let authorHtml='',label='';
-  if(o.type==='correct'){authorHtml=avatarHtml({name:'Правильна',avatar:'✓'},'big');label='Правильна відповідь'}
-  if(o.type==='fake'){authorHtml=hostAvatarHtml(game,'big');label='Фейк ведучої'}
+  if(o.type==='correct'){authorHtml=avatarHtml({name:'ÐŸÑ€Ð°Ð²Ð¸Ð»ÑŒÐ½Ð°',avatar:'âœ“'},'big');label='ÐŸÑ€Ð°Ð²Ð¸Ð»ÑŒÐ½Ð° Ð²Ñ–Ð´Ð¿Ð¾Ð²Ñ–Ð´ÑŒ'}
+  if(o.type==='fake'){authorHtml=hostAvatarHtml(game,'big');label='Ð¤ÐµÐ¹Ðº Ð²ÐµÐ´ÑƒÑ‡Ð¾Ñ—'}
   if(o.type==='player'){
     const author=players.find(p=>Number(p.id)===Number(o.player_id));
-    authorHtml=avatarHtml(author||{name:'Гравець',avatar:'?'},'big');
-    label=author?author.name:'Гравець';
+    authorHtml=avatarHtml(author||{name:'Ð“Ñ€Ð°Ð²ÐµÑ†ÑŒ',avatar:'?'},'big');
+    label=author?author.name:'Ð“Ñ€Ð°Ð²ÐµÑ†ÑŒ';
   }
-  return `<div class="revealRow revealGrid"><div class="avatarLine authorSide">${authorHtml}<b>${escapeHtml(label)}</b></div><div><span class="tag ${o.type==='correct'?'correct':o.type==='fake'?'fake':''}">${o.type==='correct'?'Правильна':o.type==='fake'?'Фейк':'Гравець'}</span><div class="answerBig">${escapeHtml(o.text)}</div></div><div><b>Голосували:</b>${voters.length?voters.map(v=>`<div class="avatarLine voterMini">${avatarHtml(v,'small')}<span>${escapeHtml(v.name)}</span></div>`).join(''):'<p class="muted">Ніхто</p>'}</div></div>`;
+  return `<div class="revealRow revealGrid"><div class="avatarLine authorSide">${authorHtml}<b>${escapeHtml(label)}</b></div><div><span class="tag ${o.type==='correct'?'correct':o.type==='fake'?'fake':''}">${o.type==='correct'?'ÐŸÑ€Ð°Ð²Ð¸Ð»ÑŒÐ½Ð°':o.type==='fake'?'Ð¤ÐµÐ¹Ðº':'Ð“Ñ€Ð°Ð²ÐµÑ†ÑŒ'}</span><div class="answerBig">${escapeHtml(o.text)}</div></div><div><b>Ð“Ð¾Ð»Ð¾ÑÑƒÐ²Ð°Ð»Ð¸:</b>${voters.length?voters.map(v=>`<div class="avatarLine voterMini">${avatarHtml(v,'small')}<span>${escapeHtml(v.name)}</span></div>`).join(''):'<p class="muted">ÐÑ–Ñ…Ñ‚Ð¾</p>'}</div></div>`;
 }
 
 function finalScreenHtml(){
   const arr=[...players].sort((a,b)=>Number(b.score||0)-Number(a.score||0));
   const winner=arr[0];
-  if(!winner)return '<div class="winnerBox"><h2>Гра завершена</h2><p class="muted">Гравців немає.</p></div>';
+  if(!winner)return '<div class="winnerBox"><h2>Ð“Ñ€Ð° Ð·Ð°Ð²ÐµÑ€ÑˆÐµÐ½Ð°</h2><p class="muted">Ð“Ñ€Ð°Ð²Ñ†Ñ–Ð² Ð½ÐµÐ¼Ð°Ñ”.</p></div>';
   const top3=arr.slice(0,3);
-  return `<div class="winnerBox finalShow"><div class="confettiLayer"><span></span><span></span><span></span><span></span><span></span></div><div class="winnerCup">🏆</div><h2>Гра завершена</h2><p class="muted">Переможець гри</p><div class="avatarLine winnerLine">${avatarHtml(winner,'big')}<b>${escapeHtml(winner.name)}</b></div><div class="winnerPoints">${winner.score||0} балів</div><div class="podium">${top3.map((p,i)=>`<div class="podiumPlace place${i+1}"><div>${i===0?'🥇':i===1?'🥈':'🥉'}</div>${avatarHtml(p,'big')}<b>${escapeHtml(p.name)}</b><span>${p.score||0}</span></div>`).join('')}</div></div>${scoreHtml()}`;
+  return `<div class="winnerBox finalShow"><div class="confettiLayer"><span></span><span></span><span></span><span></span><span></span></div><div class="winnerCup">ðŸ†</div><h2>Ð“Ñ€Ð° Ð·Ð°Ð²ÐµÑ€ÑˆÐµÐ½Ð°</h2><p class="muted">ÐŸÐµÑ€ÐµÐ¼Ð¾Ð¶ÐµÑ†ÑŒ Ð³Ñ€Ð¸</p><div class="avatarLine winnerLine">${avatarHtml(winner,'big')}<b>${escapeHtml(winner.name)}</b></div><div class="winnerPoints">${winner.score||0} Ð±Ð°Ð»Ñ–Ð²</div><div class="podium">${top3.map((p,i)=>`<div class="podiumPlace place${i+1}"><div>${i===0?'ðŸ¥‡':i===1?'ðŸ¥ˆ':'ðŸ¥‰'}</div>${avatarHtml(p,'big')}<b>${escapeHtml(p.name)}</b><span>${p.score||0}</span></div>`).join('')}</div></div>${scoreHtml()}`;
 }
 
 function scoreHtml(){
   const arr=[...players].sort((a,b)=>Number(b.score||0)-Number(a.score||0));
-  return `<h2>Таблиця гравців</h2>${arr.map((p,i)=>`<div class="playerRow rank${i+1}"><div class="avatarLine">${avatarHtml(p)}<b>${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1+'.'} ${escapeHtml(p.name)}</b></div><b>${p.score||0}</b></div>`).join('')}`;
+  return `<h2>Ð¢Ð°Ð±Ð»Ð¸Ñ†Ñ Ð³Ñ€Ð°Ð²Ñ†Ñ–Ð²</h2>${arr.map((p,i)=>`<div class="playerRow rank${i+1}"><div class="avatarLine">${avatarHtml(p)}<b>${i===0?'ðŸ¥‡':i===1?'ðŸ¥ˆ':i===2?'ðŸ¥‰':i+1+'.'} ${escapeHtml(p.name)}</b></div><b>${p.score||0}</b></div>`).join('')}`;
 }
 
-function timerHtml(left){return `<div class="timer" id="timerBox">${Math.max(0,left)} сек</div>`}
+function timerHtml(left){return `<div class="timer" id="timerBox">${Math.max(0,left)} ÑÐµÐº</div>`}
 function deadlineLeft(deadline){return deadline?Math.max(0,Number(deadline)-nowSec()):0}
 function startTimer(){
   const box=$('timerBox');
@@ -215,7 +240,7 @@ function startTimer(){
   const tick=()=>{
     const deadline=game.phase==='voting'?game.vote_deadline:game.answer_deadline;
     const left=deadlineLeft(deadline);
-    box.textContent=`${left} сек`;
+    box.textContent=`${left} ÑÐµÐº`;
     if(left<=0)setTimeout(refreshState,250);
   };
   tick();
@@ -231,8 +256,8 @@ function lettersViewerHtml(){
   if(game.phase==='finished'||game.status==='finished')return lettersFinalHtml();
   const left=['word_round1_timer','word_draw_timer','word_words_timer'].includes(game.phase)?deadlineLeft(game.answer_deadline):null;
   return `
-    <div class="pill">Словесна гра</div>
-    ${left!==null?`<div class="timer" id="timerBox">${left} сек</div>`:''}
+    <div class="pill">Ð¡Ð»Ð¾Ð²ÐµÑÐ½Ð° Ð³Ñ€Ð°</div>
+    ${left!==null?`<div class="timer" id="timerBox">${left} ÑÐµÐº</div>`:''}
     ${lettersViewerRoundHtml(cfg)}
     ${lettersScoreHtml()}
   `;
@@ -240,27 +265,27 @@ function lettersViewerHtml(){
 
 function lettersViewerRoundHtml(cfg){
   const round=Number(cfg.round||1);
-  if(game.phase==='word_lobby')return `<h2>Лобі</h2><p class="muted">Ведуча готує команди.</p>${playersListHtml()}`;
+  if(game.phase==='word_lobby')return `<h2>Ð›Ð¾Ð±Ñ–</h2><p class="muted">Ð’ÐµÐ´ÑƒÑ‡Ð° Ð³Ð¾Ñ‚ÑƒÑ” ÐºÐ¾Ð¼Ð°Ð½Ð´Ð¸.</p>${playersListHtml()}`;
   if(round===1)return `
-    <h2>Раунд 1: Категорії</h2>
-    <div class="letterHero">${escapeHtml(cfg.letter||'Букву ще не обрали')}</div>
+    <h2>Ð Ð°ÑƒÐ½Ð´ 1: ÐšÐ°Ñ‚ÐµÐ³Ð¾Ñ€Ñ–Ñ—</h2>
+    <div class="letterHero">${escapeHtml(cfg.letter||'Ð‘ÑƒÐºÐ²Ñƒ Ñ‰Ðµ Ð½Ðµ Ð¾Ð±Ñ€Ð°Ð»Ð¸')}</div>
     <div class="categoryGrid">${(cfg.categories||[]).map(c=>`<div class="noteCard">${escapeHtml(c)}</div>`).join('')}</div>
-    <p class="muted">Гравці пишуть у блокнотах і потім зачитують наживо.</p>
+    <p class="muted">Ð“Ñ€Ð°Ð²Ñ†Ñ– Ð¿Ð¸ÑˆÑƒÑ‚ÑŒ Ñƒ Ð±Ð»Ð¾ÐºÐ½Ð¾Ñ‚Ð°Ñ… Ñ– Ð¿Ð¾Ñ‚Ñ–Ð¼ Ð·Ð°Ñ‡Ð¸Ñ‚ÑƒÑŽÑ‚ÑŒ Ð½Ð°Ð¶Ð¸Ð²Ð¾.</p>
   `;
   if(round===2){
     const active=players.find(p=>Number(p.id)===Number(cfg.activePlayerId));
     const used=usedDrawIndexes(cfg);
     return `
-      <h2>Раунд 2: Намалюй за 5 секунд</h2>
-      <div class="turnBox">${active?`${avatarHtml(active)} <b>${escapeHtml(active.name)}</b> малює зараз`:'Ведуча призначає хід'}</div>
-      <div class="paperGrid">${(cfg.drawWords||[]).map((w,i)=>`<button class="paperBall paper${i%6} ${used.includes(i)?'used':''}" disabled>${used.includes(i)?'Взято':'Папірчик'}</button>`).join('')}</div>
-      <p class="muted">Секретне слово бачать тільки гравець і ведуча.</p>
+      <h2>Ð Ð°ÑƒÐ½Ð´ 2: ÐÐ°Ð¼Ð°Ð»ÑŽÐ¹ Ð·Ð° 5 ÑÐµÐºÑƒÐ½Ð´</h2>
+      <div class="turnBox">${active?`${avatarHtml(active)} <b>${escapeHtml(active.name)}</b> Ð¼Ð°Ð»ÑŽÑ” Ð·Ð°Ñ€Ð°Ð·`:'Ð’ÐµÐ´ÑƒÑ‡Ð° Ð¿Ñ€Ð¸Ð·Ð½Ð°Ñ‡Ð°Ñ” Ñ…Ñ–Ð´'}</div>
+      <div class="paperGrid">${(cfg.drawWords||[]).map((w,i)=>`<button class="paperBall paper${i%6} ${used.includes(i)?'used':''}" disabled aria-label="${used.includes(i)?'Взятий папірчик':'Закритий папірчик'}" title="${used.includes(i)?'Взято':'Закритий папірчик'}"></button>`).join('')}</div>
+      <p class="muted">Ð¡ÐµÐºÑ€ÐµÑ‚Ð½Ðµ ÑÐ»Ð¾Ð²Ð¾ Ð±Ð°Ñ‡Ð°Ñ‚ÑŒ Ñ‚Ñ–Ð»ÑŒÐºÐ¸ Ð³Ñ€Ð°Ð²ÐµÑ†ÑŒ Ñ– Ð²ÐµÐ´ÑƒÑ‡Ð°.</p>
     `;
   }
   return `
-    <h2>Раунд 3: Словотворці</h2>
+    <h2>Ð Ð°ÑƒÐ½Ð´ 3: Ð¡Ð»Ð¾Ð²Ð¾Ñ‚Ð²Ð¾Ñ€Ñ†Ñ–</h2>
     <div class="letterTiles">${(cfg.letters9||[]).map(l=>`<span>${escapeHtml(l)}</span>`).join('')}</div>
-    <p class="muted">Команди вигадують неіснуюче слово й пояснюють його наживо.</p>
+    <p class="muted">ÐšÐ¾Ð¼Ð°Ð½Ð´Ð¸ Ð²Ð¸Ð³Ð°Ð´ÑƒÑŽÑ‚ÑŒ Ð½ÐµÑ–ÑÐ½ÑƒÑŽÑ‡Ðµ ÑÐ»Ð¾Ð²Ð¾ Ð¹ Ð¿Ð¾ÑÑÐ½ÑŽÑŽÑ‚ÑŒ Ð¹Ð¾Ð³Ð¾ Ð½Ð°Ð¶Ð¸Ð²Ð¾.</p>
   `;
 }
 
@@ -273,17 +298,17 @@ function usedDrawIndexes(cfg){
 function lettersScoreHtml(){
   const teams=wordConfig().teams||[];
   if(!teams.length)return '';
-  return `<h2>Команди</h2>${teams.map(t=>`<div class="teamScore"><b>${escapeHtml(t.name)}</b><span>${Number(t.score||0)} балів</span></div>`).join('')}`;
+  return `<h2>ÐšÐ¾Ð¼Ð°Ð½Ð´Ð¸</h2>${teams.map(t=>`<div class="teamScore"><b>${escapeHtml(t.name)}</b><span>${Number(t.score||0)} Ð±Ð°Ð»Ñ–Ð²</span></div>`).join('')}`;
 }
 
 function playersListHtml(){
-  return `<div class="lobbyPlayers">${players.map(p=>`<div class="lobbyPlayer">${avatarHtml(p)}<b>${escapeHtml(p.name)}</b><span>${escapeHtml(p.team_name||'без команди')}</span></div>`).join('')}</div>`;
+  return `<div class="lobbyPlayers">${players.map(p=>`<div class="lobbyPlayer">${avatarHtml(p)}<b>${escapeHtml(p.name)}</b><span>${escapeHtml(p.team_name||'Ð±ÐµÐ· ÐºÐ¾Ð¼Ð°Ð½Ð´Ð¸')}</span></div>`).join('')}</div>`;
 }
 
 function lettersFinalHtml(){
   const teams=[...(wordConfig().teams||[])].sort((a,b)=>Number(b.score||0)-Number(a.score||0));
   const winner=teams[0];
-  return winner?`<div class="winnerBox finalShow"><div class="winnerCup">🏆</div><h2>Перемогла команда</h2><div class="winnerPoints">${escapeHtml(winner.name)} · ${winner.score||0}</div></div>${lettersScoreHtml()}`:'<h2>Гру завершено</h2>';
+  return winner?`<div class="winnerBox finalShow"><div class="winnerCup">ðŸ†</div><h2>ÐŸÐµÑ€ÐµÐ¼Ð¾Ð³Ð»Ð° ÐºÐ¾Ð¼Ð°Ð½Ð´Ð°</h2><div class="winnerPoints">${escapeHtml(winner.name)} Â· ${winner.score||0}</div></div>${lettersScoreHtml()}`:'<h2>Ð“Ñ€Ñƒ Ð·Ð°Ð²ÐµÑ€ÑˆÐµÐ½Ð¾</h2>';
 }
 
 let audioCtx=null;

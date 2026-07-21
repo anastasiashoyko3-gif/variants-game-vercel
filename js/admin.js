@@ -593,7 +593,11 @@ function subscribe(gameId){
   .on('postgres_changes',{event:'*',schema:'public',table:'games',filter:'id=eq.'+gameId},p=>{currentGame=p.new;loadData()}).subscribe(s=>console.log('admin realtime',s));
 }
 function leftSec(deadline){if(!deadline)return 0;return Math.max(0,Number(deadline)-nowSec())}
-setInterval(()=>{if(currentGame&&(currentGame.phase==='answering'||currentGame.phase==='voting'))renderAdminState()},1000);
+setInterval(()=>{
+  if(!currentGame)return;
+  const timedPhases=['answering','voting','word_round1_timer','word_draw_timer','word_words_timer'];
+  if(timedPhases.includes(currentGame.phase))renderAdminState();
+},1000);
 
 function teamNames(){
   const cfg=wordConfig();
@@ -731,7 +735,7 @@ function lettersRoundHtml(cfg){
 function paperHtml(cfg,i,word,forPlayer){
   const used=usedDrawIndexes(cfg).includes(i);
   const cls=['paperBall',`paper${i%6}`,used?'used':''].join(' ');
-  return `<button class="${cls}" ${used||forPlayer?'disabled':''}>${used?'Взято':'Папірчик'}</button>`;
+  return `<button class="${cls}" ${used||forPlayer?'disabled':''} aria-label="${used?'Взятий папірчик':'Закритий папірчик'}" title="${used?'Взято':'Закритий папірчик'}"></button>`;
 }
 
 function renderLettersHint(){
