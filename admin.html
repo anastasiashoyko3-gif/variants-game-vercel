@@ -19,6 +19,30 @@
 <input id="gameTitle" placeholder="Назва гри" value="Гра Варіанти"/>
 <input id="gamePassword" placeholder="Пароль для гравців" value="game123"/>
 <input id="hostAvatar" placeholder="Аватарка ведучої: 👑 або URL" value="👑"/>
+<label class="fieldLabel">Режим гри</label>
+<select id="gameMode">
+  <option value="variants">Варіанти</option>
+  <option value="letters">Словесна гра</option>
+</select>
+<div id="lettersSetup" class="lettersSetup hidden">
+  <h3>Раунд 1: категорії</h3>
+  <div class="miniGrid">
+    <input id="letterCat0" placeholder="Категорія 1" value="Їжа"/>
+    <input id="letterCat1" placeholder="Категорія 2" value="Предмет"/>
+    <input id="letterCat2" placeholder="Категорія 3" value="Імʼя"/>
+    <input id="letterCat3" placeholder="Категорія 4" value="Тварина"/>
+    <input id="letterCat4" placeholder="Категорія 5" value="Щось після вечірки"/>
+  </div>
+  <h3>Раунд 2: слова для малювання</h3>
+  <div class="miniGrid">
+    <input id="drawWord0" placeholder="Слово 1" value="кіт"/>
+    <input id="drawWord1" placeholder="Слово 2" value="ковбаса"/>
+    <input id="drawWord2" placeholder="Слово 3" value="весілля"/>
+    <input id="drawWord3" placeholder="Слово 4" value="сусід"/>
+    <input id="drawWord4" placeholder="Слово 5" value="туалет"/>
+    <input id="drawWord5" placeholder="Слово 6" value="зрада"/>
+  </div>
+</div>
 <label class="fileLabel">Фото ведучої з пристрою<input id="hostAvatarFile" type="file" accept="image/*"></label>
 <div class="actions"><button id="createGameBtn">Створити</button><button class="secondary" id="cancelCreateBtn">Скасувати</button></div>
 </div>

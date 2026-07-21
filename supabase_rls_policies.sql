@@ -10,6 +10,21 @@ alter table if exists votes enable row level security;
 alter table if exists points enable row level security;
 alter table if exists question_sets enable row level security;
 
+alter table if exists games add column if not exists mode text default 'variants';
+alter table if exists games add column if not exists word_config_json text default '{}';
+alter table if exists players add column if not exists team_name text;
+
+create table if not exists word_events (
+  id bigint generated always as identity primary key,
+  game_id bigint references games(id) on delete cascade,
+  player_id bigint references players(id) on delete cascade,
+  event_type text,
+  payload_json text,
+  created_at text
+);
+
+alter table if exists word_events enable row level security;
+
 drop policy if exists "public can read games" on games;
 drop policy if exists "public can read questions" on questions;
 drop policy if exists "public can read players" on players;
@@ -23,6 +38,8 @@ drop policy if exists "public can submit votes" on votes;
 drop policy if exists "public can update own round vote" on votes;
 drop policy if exists "public can read points" on points;
 drop policy if exists "public can read question sets" on question_sets;
+drop policy if exists "public can read word events" on word_events;
+drop policy if exists "public can add word events" on word_events;
 
 -- Public read is needed by player and viewer screens.
 -- Admin writes are no longer public: they go through Vercel API with SUPABASE_SERVICE_ROLE_KEY.
@@ -135,3 +152,21 @@ create policy "public can read question sets"
 on question_sets for select
 to anon, authenticated
 using (true);
+
+create policy "public can read word events"
+on word_events for select
+to anon, authenticated
+using (true);
+
+create policy "public can add word events"
+on word_events for insert
+to anon, authenticated
+with check (
+  exists (
+    select 1
+    from games
+    where games.id = word_events.game_id
+      and coalesce(games.status,'active') <> 'finished'
+      and coalesce(games.mode,'variants') = 'letters'
+  )
+);

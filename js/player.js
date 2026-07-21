@@ -1,6 +1,6 @@
 import { supabase, escapeHtml, avatarHtml, hostAvatarHtml, nowSec, safeJson, uploadPublicFile } from './supabaseClient.js';
 
-let game=null, player=null, questions=[], currentQuestion=null, players=[], answers=[], votes=[], channel=null, timerInterval=null, pollInterval=null, loading=false;
+let game=null, player=null, questions=[], currentQuestion=null, players=[], answers=[], votes=[], wordEvents=[], channel=null, timerInterval=null, pollInterval=null, loading=false;
 const $=id=>document.getElementById(id);
 const joinCard=$('joinCard'), playCard=$('playCard'), stateBox=$('gameState');
 
@@ -46,8 +46,9 @@ async function refreshState(){
 
   loading=true;
   try{
-    const [gRes,qRes,pRes]=await Promise.all([supabase.from('games').select('*').eq('id',game.id).single(),supabase.from('questions').select('*').eq('game_id',game.id).order('q_order',{ascending:true}),supabase.from('players').select('*').eq('game_id',game.id)]);
+    const [gRes,qRes,pRes,eRes]=await Promise.all([supabase.from('games').select('*').eq('id',game.id).single(),supabase.from('questions').select('*').eq('game_id',game.id).order('q_order',{ascending:true}),supabase.from('players').select('*').eq('game_id',game.id),supabase.from('word_events').select('*').eq('game_id',game.id).order('id',{ascending:false})]);
     if(!gRes.error&&gRes.data)game=gRes.data;questions=qRes.data||[];players=pRes.data||[];currentQuestion=questions[Number(game.current_q||0)]||null;
+    wordEvents=eRes.data||[];
     if(currentQuestion){const [aRes,vRes]=await Promise.all([supabase.from('answers').select('*').eq('question_id',currentQuestion.id),supabase.from('votes').select('*').eq('question_id',currentQuestion.id)]);answers=aRes.data||[];votes=vRes.data||[]}else{answers=[];votes=[]}
 
     const stillSameAnsweringScreen =
@@ -67,6 +68,7 @@ function subscribe(){
   .on('postgres_changes',{event:'*',schema:'public',table:'questions',filter:'game_id=eq.'+game.id},refreshState)
   .on('postgres_changes',{event:'*',schema:'public',table:'answers',filter:'game_id=eq.'+game.id},refreshState)
   .on('postgres_changes',{event:'*',schema:'public',table:'votes',filter:'game_id=eq.'+game.id},refreshState)
+  .on('postgres_changes',{event:'*',schema:'public',table:'word_events',filter:'game_id=eq.'+game.id},refreshState)
   .on('postgres_changes',{event:'*',schema:'public',table:'players',filter:'game_id=eq.'+game.id},refreshState)
   .subscribe(s=>console.log('player realtime',s));
   pollInterval=setInterval(refreshState,1500);
@@ -138,6 +140,11 @@ function getPlayerOptions(opts){
 function render(){
   const savedAnswerDraft = document.getElementById('answerText')?.value ?? null;
   clearInterval(timerInterval); if(!game)return; let html='';
+  if(game.mode==='letters'){
+    stateBox.innerHTML=lettersPlayerHtml();
+    startTimer();
+    return;
+  }
   if(game.phase==='finished' || game.status==='finished'){
     stateBox.innerHTML=finalScreenHtml();
     return;
@@ -217,4 +224,102 @@ function scoreHtml(){const arr=[...players].sort((a,b)=>Number(b.score||0)-Numbe
 function timerHtml(left){return `<div class="timer" id="timerBox">${Math.max(0,left)} сек</div>`}
 function pauseHtml(left,text){return `<div class="pausePanel"><div class="pauseIcon">Ⅱ</div><h2>Пауза</h2><p class="muted">${escapeHtml(text)}</p><div class="timer">${Math.max(0,left)} сек залишилось</div></div>`}
 function deadlineLeft(deadline){return deadline?Math.max(0,Number(deadline)-nowSec()):0}
-function startTimer(){const box=$('timerBox');if(!box)return;const tick=()=>{const deadline=game.phase==='answering'?game.answer_deadline:game.vote_deadline;const left=deadlineLeft(deadline);box.textContent=`${left} сек`;if(left<=0)setTimeout(refreshState,250)};tick();timerInterval=setInterval(tick,1000)}
+function startTimer(){const box=$('timerBox');if(!box)return;const tick=()=>{const deadline=game.phase==='voting'?game.vote_deadline:game.answer_deadline;const left=deadlineLeft(deadline);box.textContent=`${left} сек`;if(left<=0)setTimeout(refreshState,250)};tick();timerInterval=setInterval(tick,1000)}
+
+function wordConfig(){
+  return safeJson(game?.word_config_json,{round:1,categories:[],drawWords:[],usedDrawIndexes:[],letters9:[],teams:[]});
+}
+
+function lettersPlayerHtml(){
+  const cfg=wordConfig();
+  const phase=game.phase;
+  if(phase==='finished'||game.status==='finished')return lettersFinalHtml();
+  const left=['word_round1_timer','word_draw_timer','word_words_timer'].includes(phase)?deadlineLeft(game.answer_deadline):null;
+  return `
+    <div class="pill">Словесна гра${player.team_name?` · ${escapeHtml(player.team_name)}`:''}</div>
+    ${left!==null?`<div class="timer" id="timerBox">${left} сек</div>`:''}
+    ${lettersPlayerRoundHtml(cfg)}
+    ${lettersScoreHtml()}
+  `;
+}
+
+function lettersPlayerRoundHtml(cfg){
+  const round=Number(cfg.round||1);
+  if(game.phase==='word_lobby')return `<h2>Лобі</h2><p class="muted">Чекаємо старт від ведучої.</p>${playersListHtml()}`;
+  if(round===1)return `
+    <h2>Раунд 1: Категорії</h2>
+    <div class="letterHero">${escapeHtml(cfg.letter||'Букву ще не обрали')}</div>
+    <div class="notebookGrid">${(cfg.categories||[]).map((c,i)=>`<label class="noteInput"><b>${escapeHtml(c)}</b><textarea oninput="saveWordNote('r1_${i}',this.value)" placeholder="Твоя відповідь">${escapeHtml(loadWordNote(`r1_${i}`))}</textarea></label>`).join('')}</div>
+    <p class="muted">Після таймера зачитуйте відповіді наживо.</p>
+  `;
+  if(round===2)return drawPlayerHtml(cfg);
+  return `
+    <h2>Раунд 3: Словотворці</h2>
+    <div class="letterTiles">${(cfg.letters9||[]).map(l=>`<span>${escapeHtml(l)}</span>`).join('')}</div>
+    <label class="noteInput"><b>Неіснуюче слово</b><textarea oninput="saveWordNote('r3_word',this.value)" placeholder="Наприклад: лосрано">${escapeHtml(loadWordNote('r3_word'))}</textarea></label>
+    <label class="noteInput"><b>Що воно означає</b><textarea oninput="saveWordNote('r3_meaning',this.value)" placeholder="Пояснення зачитуєте наживо">${escapeHtml(loadWordNote('r3_meaning'))}</textarea></label>
+  `;
+}
+
+function drawPlayerHtml(cfg){
+  const active=Number(cfg.activePlayerId||0)===Number(player.id);
+  const opened=wordEvents.find(e=>e.event_type==='draw_open'&&Number(e.player_id)===Number(player.id));
+  const payload=safeJson(opened?.payload_json,{});
+  const usedIndexes=usedDrawIndexes(cfg);
+  return `
+    <h2>Раунд 2: Намалюй за 5 секунд</h2>
+    ${active?'<p class="finalNote">Твій хід. Обери один папірчик.</p>':'<p class="muted">Чекаємо, кого призначить ведуча.</p>'}
+    ${opened?`<div class="secretWord">Твоє слово: <b>${escapeHtml(payload.word||'')}</b></div>`:''}
+    <div class="paperGrid">${(cfg.drawWords||[]).map((w,i)=>{
+      const used=usedIndexes.includes(i);
+      const can=active&&!opened&&!used&&game.phase==='word_draw_pick';
+      return `<button class="paperBall paper${i%6} ${used?'used':''}" ${can?`onclick="openDrawWord(${i})"`:'disabled'}>${used?'Взято':'Папірчик'}</button>`;
+    }).join('')}</div>
+  `;
+}
+
+function usedDrawIndexes(cfg){
+  const fromConfig=cfg.usedDrawIndexes||[];
+  const fromEvents=wordEvents.filter(e=>e.event_type==='draw_open').map(e=>safeJson(e.payload_json,{}).index).filter(i=>Number.isInteger(Number(i))).map(Number);
+  return [...new Set([...fromConfig,...fromEvents])];
+}
+
+async function openDrawWord(index){
+  const cfg=wordConfig();
+  if(Number(cfg.activePlayerId)!==Number(player.id))return;
+  if((cfg.usedDrawIndexes||[]).includes(index))return;
+  const word=(cfg.drawWords||[])[index];
+  const {error}=await supabase.from('word_events').insert({game_id:game.id,player_id:player.id,event_type:'draw_open',payload_json:JSON.stringify({index,word}),created_at:new Date().toISOString()});
+  if(error){alert(error.message);return}
+  await refreshState();
+}
+window.openDrawWord=openDrawWord;
+
+function lettersScoreHtml(){
+  const teams=wordConfig().teams||[];
+  if(!teams.length)return '';
+  return `<h2>Команди</h2>${teams.map(t=>`<div class="teamScore"><b>${escapeHtml(t.name)}</b><span>${Number(t.score||0)} балів</span></div>`).join('')}`;
+}
+
+function playersListHtml(){
+  return `<div class="lobbyPlayers">${players.map(p=>`<div class="lobbyPlayer">${avatarHtml(p)}<b>${escapeHtml(p.name)}</b><span>${escapeHtml(p.team_name||'без команди')}</span></div>`).join('')}</div>`;
+}
+
+function lettersFinalHtml(){
+  const teams=[...(wordConfig().teams||[])].sort((a,b)=>Number(b.score||0)-Number(a.score||0));
+  const winner=teams[0];
+  return winner?`<div class="winnerBox finalShow"><div class="winnerCup">🏆</div><h2>Перемогла команда</h2><div class="winnerPoints">${escapeHtml(winner.name)} · ${winner.score||0}</div></div>${lettersScoreHtml()}`:'<h2>Гру завершено</h2>';
+}
+
+function wordNoteKey(key){
+  return `letters_note_${game.id}_${player.id}_${key}`;
+}
+
+function saveWordNote(key,value){
+  localStorage.setItem(wordNoteKey(key),value);
+}
+
+function loadWordNote(key){
+  return localStorage.getItem(wordNoteKey(key))||'';
+}
+window.saveWordNote=saveWordNote;

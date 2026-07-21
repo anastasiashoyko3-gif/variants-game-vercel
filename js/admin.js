@@ -5,7 +5,7 @@ import {
 } from './supabaseClient.js';
 import { adminDb } from './adminDb.js';
 
-let currentGame=null, games=[], sets=[], questions=[], players=[], answers=[], votes=[], channel=null, loading=false;
+let currentGame=null, games=[], sets=[], questions=[], players=[], answers=[], votes=[], wordEvents=[], channel=null, loading=false;
 let guardedNextUntil=0;
 
 const $=id=>document.getElementById(id);
@@ -19,6 +19,7 @@ $('loginBtn').onclick=loginAdmin;
 $('logoutBtn').onclick=logoutAdmin;
 $('showCreateBtn').onclick=()=>show(createPanel);
 $('cancelCreateBtn').onclick=()=>hide(createPanel);
+$('gameMode').onchange=()=>toggleLettersSetup();
 $('refreshBtn').onclick=showMenu;
 $('backBtn').onclick=showMenu;
 $('editQuestionsBtn').onclick=()=>{renderQuestionEditor();show(questionEditor)};
@@ -50,6 +51,51 @@ async function copyInvite(linkId, buttonId){
 
 
 checkAdminSession();
+toggleLettersSetup();
+
+function toggleLettersSetup(){
+  if(!$('gameMode')||!$('lettersSetup'))return;
+  $('lettersSetup').classList.toggle('hidden',$('gameMode').value!=='letters');
+}
+
+function defaultWordConfig(){
+  const categories=Array.from({length:5},(_,i)=>$(`letterCat${i}`)?.value.trim()).filter(Boolean);
+  const drawWords=Array.from({length:6},(_,i)=>$(`drawWord${i}`)?.value.trim()).filter(Boolean);
+  return JSON.stringify({
+    round:1,
+    letter:'',
+    letters9:[],
+    categories,
+    drawWords,
+    usedDrawIndexes:[],
+    activePlayerId:null,
+    teams:[]
+  });
+}
+
+function wordConfig(){
+  return safeJson(currentGame?.word_config_json,{round:1,categories:[],drawWords:[],usedDrawIndexes:[],teams:[],letters9:[]});
+}
+
+async function saveWordConfig(config,extra={}){
+  await updateGame({word_config_json:JSON.stringify(config),...extra});
+}
+
+function isLettersGame(){
+  return currentGame?.mode==='letters';
+}
+
+function uaLetter(){
+  const letters='АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЮЯ'.split('');
+  return letters[Math.floor(Math.random()*letters.length)];
+}
+
+function nineLetters(){
+  const vowels='АОУЕИІЯЮЄ'.split('');
+  const consonants='БВГДЖЗКЛМНПРСТФХЦЧШ'.split('');
+  const all=[...vowels.sort(()=>Math.random()-.5).slice(0,3),...consonants.sort(()=>Math.random()-.5).slice(0,6)];
+  return shuffle(all);
+}
 
 async function loginAdmin(){
   const password=$('adminPassword').value.trim();
@@ -140,9 +186,11 @@ $('createGameBtn').onclick=async()=>{
   const title=$('gameTitle').value.trim()||'Гра Варіанти';
   const game_password=$('gamePassword').value.trim()||'game123';
   let host_avatar=$('hostAvatar').value.trim()||'👑';
+  const mode=$('gameMode')?.value||'variants';
+  const wordConfig=mode==='letters'?defaultWordConfig():'{}';
   const file=$('hostAvatarFile')?.files?.[0];
   try{if(file)host_avatar=await uploadPublicFile(file,'host-avatars')}catch(e){alert('Фото ведучої не завантажилось: '+e.message);return}
-  const {data,error}=await adminDb.from('games').insert({invite_code:makeCode(),title,game_password,host_avatar,status:'active',phase:'lobby',current_q:0,scoreboard_visible:0,created_at:new Date().toISOString()}).select().single();
+  const {data,error}=await adminDb.from('games').insert({invite_code:makeCode(),title,game_password,host_avatar,mode,word_config_json:wordConfig,status:'active',phase:mode==='letters'?'word_lobby':'lobby',current_q:0,scoreboard_visible:0,created_at:new Date().toISOString()}).select().single();
   if(error){alert(error.message);return}
   openGame(data);
 };
@@ -152,7 +200,8 @@ window.deleteGameById=async(id)=>{if(!confirm('Видалити гру?'))return
 window.duplicateGameById=async(id)=>{
   const source=games.find(g=>Number(g.id)===Number(id)); if(!source)return;
   const {data:qs}=await adminDb.from('questions').select('*').eq('game_id',id).order('q_order',{ascending:true});
-  const {data:newGame,error}=await adminDb.from('games').insert({invite_code:makeCode(),title:(source.title||'Гра')+' копія',game_password:source.game_password||'game123',host_avatar:source.host_avatar||'👑',status:'active',phase:'lobby',current_q:0,scoreboard_visible:0,created_at:new Date().toISOString()}).select().single();
+  const mode=source.mode||'variants';
+  const {data:newGame,error}=await adminDb.from('games').insert({invite_code:makeCode(),title:(source.title||'Гра')+' копія',game_password:source.game_password||'game123',host_avatar:source.host_avatar||'👑',mode,word_config_json:source.word_config_json||'{}',status:'active',phase:mode==='letters'?'word_lobby':'lobby',current_q:0,scoreboard_visible:0,created_at:new Date().toISOString()}).select().single();
   if(error){alert(error.message);return}
   await insertQuestions(newGame.id,qs||[]); await loadGames();
 };
@@ -179,6 +228,8 @@ async function openGame(game){
   $('gameName').textContent=game.title;
   $('inviteLink').textContent=`${location.origin}/game.html?code=${game.invite_code}`;
   $('viewerInviteLink').textContent=`${location.origin}/viewer.html?code=${game.invite_code}`;
+  $('editQuestionsBtn').classList.toggle('hidden',game.mode==='letters');
+  $('saveSetBtn').classList.toggle('hidden',game.mode==='letters');
   subscribe(game.id); await loadData(); renderQuestionEditor();
 }
 
@@ -203,13 +254,15 @@ async function saveSettings(){
 async function loadData(){
   if(!currentGame||loading)return;loading=true;
   try{
-    const [gRes,qRes,pRes]=await Promise.all([
+    const [gRes,qRes,pRes,eRes]=await Promise.all([
       adminDb.from('games').select('*').eq('id',currentGame.id).single(),
       adminDb.from('questions').select('*').eq('game_id',currentGame.id).order('q_order',{ascending:true}),
-      adminDb.from('players').select('*').eq('game_id',currentGame.id).order('score',{ascending:false})
+      adminDb.from('players').select('*').eq('game_id',currentGame.id).order('score',{ascending:false}),
+      adminDb.from('word_events').select('*').eq('game_id',currentGame.id).order('id',{ascending:false})
     ]);
     if(!gRes.error&&gRes.data)currentGame=gRes.data;
     questions=qRes.data||[]; players=pRes.data||[];
+    wordEvents=eRes.data||[];
     const q=getCurrentQuestion();
     if(q){
       const [aRes,vRes]=await Promise.all([adminDb.from('answers').select('*').eq('question_id',q.id),adminDb.from('votes').select('*').eq('question_id',q.id)]);
@@ -221,6 +274,11 @@ async function loadData(){
 
 function getCurrentQuestion(){return questions[Number(currentGame?.current_q||0)]||null}
 function renderAll(){
+  if(isLettersGame()){
+    renderLettersAll();
+    return;
+  }
+
   renderPlayers();
   renderScore();
 
@@ -238,6 +296,15 @@ function renderAll(){
   renderAdminState();
   renderRevealPanel();
   renderNextHint();
+  renderPauseButton();
+}
+
+function renderLettersAll(){
+  renderLettersPlayers();
+  renderLettersScore();
+  $('revealPanel').innerHTML='';
+  renderLettersAdminState();
+  renderLettersHint();
   renderPauseButton();
 }
 
@@ -441,6 +508,7 @@ async function saveCurrentAsSet(){
 }
 
 async function nextStage(){
+  if(isLettersGame())return nextLettersStage();
   if(currentGame?.phase==='finished' || currentGame?.status==='finished') return;
   const phase=currentGame?.phase||'lobby';
   if(phase==='paused_answering'||phase==='paused_voting'){alert('Спочатку продовж таймер.');return}
@@ -463,6 +531,12 @@ async function nextStage(){
 document.querySelectorAll('[data-action]').forEach(btn=>btn.onclick=()=>doAction(btn.dataset.action));
 
 async function doAction(action){
+  if(isLettersGame()&&action==='finish_game'){
+    if(!confirm('Завершити гру зараз?'))return;
+    await updateGame({phase:'finished',status:'finished',scoreboard_visible:1,finished_at:new Date().toISOString()});
+    await loadData();
+    return;
+  }
   const q=getCurrentQuestion();
   if(!q&&action!=='finish_game'){alert('Спочатку додай питання.');return}
   if(action==='show_question')await updateGame({phase:'question_preview',answer_deadline:null,vote_deadline:null,scoreboard_visible:0});
@@ -515,10 +589,191 @@ function subscribe(gameId){
   .on('postgres_changes',{event:'*',schema:'public',table:'questions',filter:'game_id=eq.'+gameId},loadData)
   .on('postgres_changes',{event:'*',schema:'public',table:'answers',filter:'game_id=eq.'+gameId},loadData)
   .on('postgres_changes',{event:'*',schema:'public',table:'votes',filter:'game_id=eq.'+gameId},loadData)
+  .on('postgres_changes',{event:'*',schema:'public',table:'word_events',filter:'game_id=eq.'+gameId},loadData)
   .on('postgres_changes',{event:'*',schema:'public',table:'games',filter:'id=eq.'+gameId},p=>{currentGame=p.new;loadData()}).subscribe(s=>console.log('admin realtime',s));
 }
 function leftSec(deadline){if(!deadline)return 0;return Math.max(0,Number(deadline)-nowSec())}
 setInterval(()=>{if(currentGame&&(currentGame.phase==='answering'||currentGame.phase==='voting'))renderAdminState()},1000);
+
+function teamNames(){
+  const cfg=wordConfig();
+  const fromConfig=(cfg.teams||[]).map(t=>t.name).filter(Boolean);
+  const fromPlayers=players.map(p=>p.team_name).filter(Boolean);
+  return [...new Set([...fromConfig,...fromPlayers])];
+}
+
+function teams(){
+  const cfg=wordConfig();
+  const names=teamNames();
+  return names.map(name=>({
+    name,
+    score:Number((cfg.teams||[]).find(t=>t.name===name)?.score||0),
+    players:players.filter(p=>p.team_name===name)
+  }));
+}
+
+function latestDrawEvent(){
+  return wordEvents.find(e=>e.event_type==='draw_open');
+}
+
+function usedDrawIndexes(cfg){
+  const fromConfig=cfg.usedDrawIndexes||[];
+  const fromEvents=wordEvents.filter(e=>e.event_type==='draw_open').map(e=>safeJson(e.payload_json,{}).index).filter(i=>Number.isInteger(Number(i))).map(Number);
+  return [...new Set([...fromConfig,...fromEvents])];
+}
+
+function renderLettersPlayers(){
+  const names=teamNames();
+  $('playersList').innerHTML=players.length?players.map(p=>`
+    <div class="playerRow">
+      <div class="avatarLine">${avatarHtml(p)}<b>${escapeHtml(p.name)}</b></div>
+      <select class="teamSelect" onchange="window.setPlayerTeam(${p.id},this.value)">
+        <option value="">Без команди</option>
+        ${names.map(n=>`<option value="${escapeHtml(n)}" ${p.team_name===n?'selected':''}>${escapeHtml(n)}</option>`).join('')}
+      </select>
+    </div>
+  `).join(''):'<p class="muted">Гравців ще немає.</p>';
+}
+
+function renderLettersScore(){
+  const list=teams();
+  $('scoreBoard').innerHTML=`
+    <div class="wordTeamsBox">
+      <div class="actions">
+        <input id="newTeamName" placeholder="Назва команди"/>
+        <button class="secondary" onclick="window.addTeam()">Додати команду</button>
+      </div>
+      ${list.length?list.map(t=>`
+        <div class="teamScore">
+          <div><b>${escapeHtml(t.name)}</b><p class="muted">${t.players.map(p=>p.name).join(', ')||'поки без гравців'}</p></div>
+          <div class="scoreControls">
+            <button class="secondary smallBtn" onclick="window.adjustTeam('${escapeHtml(t.name)}',-1)">-1</button>
+            <input class="scoreInput" value="${t.score}" onchange="window.setTeamScore('${escapeHtml(t.name)}',this.value)"/>
+            <button class="secondary smallBtn" onclick="window.adjustTeam('${escapeHtml(t.name)}',1)">+1</button>
+          </div>
+        </div>
+      `).join(''):'<p class="muted">Створи команди й признач гравців.</p>'}
+    </div>
+  `;
+}
+
+function roundTitle(round){
+  if(round===1)return 'Раунд 1: Категорії на літеру';
+  if(round===2)return 'Раунд 2: Намалюй за 5 секунд';
+  return 'Раунд 3: Словотворці';
+}
+
+function renderLettersAdminState(){
+  if(currentGame?.phase==='finished'||currentGame?.status==='finished'){
+    $('adminState').innerHTML=lettersFinalHtml();
+    return;
+  }
+  const cfg=wordConfig();
+  const phase=currentGame.phase;
+  const left=['word_round1_timer','word_draw_timer','word_words_timer'].includes(phase)?leftSec(currentGame.answer_deadline):null;
+  $('adminState').innerHTML=`
+    <div class="pill">Словесна гра</div>
+    <div class="pill">${roundTitle(Number(cfg.round||1))}</div>
+    ${left!==null?`<div class="timer smallTimer">${left} сек</div>`:''}
+    ${lettersRoundHtml(cfg)}
+  `;
+}
+
+function lettersRoundHtml(cfg){
+  const round=Number(cfg.round||1);
+  if(currentGame.phase==='word_lobby')return `
+    <div class="question">Лобі словесної гри</div>
+    <p class="muted">Створи команди, признач гравців і запускай перший раунд.</p>
+  `;
+  if(round===1)return `
+    <div class="letterHero">${escapeHtml(cfg.letter||'Букву ще не обрано')}</div>
+    <div class="actions">
+      <button onclick="window.pickLetter()">Обрати букву</button>
+      <button class="secondary" onclick="window.pickLetter()">Поміняти букву</button>
+      <button class="secondary" onclick="window.startWordTimer(60)">Почати 60 секунд</button>
+      <button class="secondary" onclick="window.addTime(10)">Додати 10 секунд</button>
+    </div>
+    <h3>Категорії</h3>
+    <div class="categoryGrid">${(cfg.categories||[]).map(c=>`<div class="noteCard">${escapeHtml(c)}</div>`).join('')}</div>
+  `;
+  if(round===2){
+    const active=players.find(p=>Number(p.id)===Number(cfg.activePlayerId));
+    const latest=latestDrawEvent();
+    const payload=safeJson(latest?.payload_json,{});
+    return `
+      <div class="question">Папірчики зі словами</div>
+      <p class="muted">Признач гравця, він відкриє один папірчик. Слово бачите тільки ти і він.</p>
+      <h3>Хто зараз ходить</h3>
+      <div class="turnBox">${active?`${avatarHtml(active)} <b>${escapeHtml(active.name)}</b>`:'Хід ще не призначено'}</div>
+      <div class="paperGrid">${(cfg.drawWords||[]).map((w,i)=>paperHtml(cfg,i,w,false)).join('')}</div>
+      ${latest?`<div class="finalNote"><b>${escapeHtml(players.find(p=>Number(p.id)===Number(latest.player_id))?.name||'Гравець')}</b> відкрив/відкрила слово: <b>${escapeHtml(payload.word||'')}</b></div>`:''}
+      <div class="actions">
+        <button class="secondary" onclick="window.startWordTimer(5)">Старт 5 секунд</button>
+        <button class="secondary" onclick="window.addTime(10)">Додати 10 секунд</button>
+      </div>
+      <h3>Призначити хід</h3>
+      <div class="actions">${players.map(p=>`<button class="secondary" onclick="window.assignDrawPlayer(${p.id})">${escapeHtml(p.name)}</button>`).join('')}</div>
+    `;
+  }
+  return `
+    <div class="question">Складіть неіснуюче слово</div>
+    <div class="letterTiles">${(cfg.letters9||[]).map(l=>`<span>${escapeHtml(l)}</span>`).join('')}</div>
+    <div class="actions">
+      <button onclick="window.pickNineLetters()">Згенерувати 9 літер</button>
+      <button class="secondary" onclick="window.pickNineLetters()">Поміняти літери</button>
+      <button class="secondary" onclick="window.startWordTimer(60)">Почати 60 секунд</button>
+      <button class="secondary" onclick="window.addTime(10)">Додати 10 секунд</button>
+    </div>
+    <p class="muted">Команди зачитують слово наживо й пояснюють, що воно означає. Бали ставиш вручну.</p>
+  `;
+}
+
+function paperHtml(cfg,i,word,forPlayer){
+  const used=usedDrawIndexes(cfg).includes(i);
+  const cls=['paperBall',`paper${i%6}`,used?'used':''].join(' ');
+  return `<button class="${cls}" ${used||forPlayer?'disabled':''}>${used?'Взято':'Папірчик'}</button>`;
+}
+
+function renderLettersHint(){
+  const phase=currentGame?.phase;
+  const map={word_lobby:'Далі: запустити раунд 1',word_round1:'Обери букву й запускай таймер',word_round1_timer:'Гравці пишуть відповіді у блокноті',word_round1_review:'Команди зачитують, ти ставиш бали',word_draw:'Признач гравця для папірчика',word_draw_pick:'Гравець відкриває слово',word_draw_timer:'5 секунд на малюнок',word_draw_review:'Команда вгадує, суперники можуть перехопити',word_words:'Згенеруй 9 літер',word_words_timer:'60 секунд на вигадане слово',word_words_review:'Команди пояснюють слова, ти ставиш бали'};
+  $('nextHint').textContent=map[phase]||'';
+  $('nextStageBtn').textContent=phase==='word_words_review'?'Завершити гру':'Наступний етап';
+}
+
+async function nextLettersStage(){
+  const cfg=wordConfig();
+  const phase=currentGame.phase;
+  if(phase==='word_lobby')await saveWordConfig({...cfg,round:1},{phase:'word_round1'});
+  if(phase==='word_round1')await saveWordConfig(cfg,{phase:'word_round1_timer',answer_deadline:nowSec()+60});
+  if(phase==='word_round1_timer')await saveWordConfig(cfg,{phase:'word_round1_review',answer_deadline:null});
+  if(phase==='word_round1_review')await saveWordConfig({...cfg,round:2,activePlayerId:null},{phase:'word_draw'});
+  if(phase==='word_draw')await saveWordConfig(cfg,{phase:'word_draw_pick'});
+  if(phase==='word_draw_pick')await saveWordConfig(cfg,{phase:'word_draw_timer',answer_deadline:nowSec()+5});
+  if(phase==='word_draw_timer')await saveWordConfig(cfg,{phase:'word_draw_review',answer_deadline:null});
+  if(phase==='word_draw_review')await saveWordConfig({...cfg,round:3,activePlayerId:null},{phase:'word_words'});
+  if(phase==='word_words')await saveWordConfig({...cfg,letters9:cfg.letters9?.length?cfg.letters9:nineLetters()},{phase:'word_words_timer',answer_deadline:nowSec()+60});
+  if(phase==='word_words_timer')await saveWordConfig(cfg,{phase:'word_words_review',answer_deadline:null});
+  if(phase==='word_words_review')await updateGame({phase:'finished',status:'finished',scoreboard_visible:1,finished_at:new Date().toISOString()});
+  await loadData();
+}
+
+window.pickLetter=async()=>{const cfg=wordConfig();cfg.letter=uaLetter();await saveWordConfig(cfg,{phase:'word_round1'});await loadData()};
+window.pickNineLetters=async()=>{const cfg=wordConfig();cfg.letters9=nineLetters();await saveWordConfig(cfg,{phase:'word_words'});await loadData()};
+window.startWordTimer=async(sec)=>{await updateGame({answer_deadline:nowSec()+Number(sec||60),phase:Number(wordConfig().round)===2?'word_draw_timer':Number(wordConfig().round)===3?'word_words_timer':'word_round1_timer'});await loadData()};
+window.addTime=async(sec)=>{await updateGame({answer_deadline:Math.max(nowSec(),Number(currentGame.answer_deadline||nowSec()))+Number(sec||10)});await loadData()};
+window.assignDrawPlayer=async(playerId)=>{const cfg=wordConfig();cfg.activePlayerId=Number(playerId);await saveWordConfig(cfg,{phase:'word_draw_pick'});await loadData()};
+window.addTeam=async()=>{const name=$('newTeamName')?.value.trim();if(!name)return;const cfg=wordConfig();cfg.teams=cfg.teams||[];if(!cfg.teams.some(t=>t.name===name))cfg.teams.push({name,score:0});await saveWordConfig(cfg);await loadData()};
+window.setPlayerTeam=async(playerId,team)=>{const {error}=await adminDb.from('players').update({team_name:team||null}).eq('id',playerId);if(error)alert(error.message);await loadData()};
+window.adjustTeam=async(name,delta)=>{const cfg=wordConfig();cfg.teams=cfg.teams||[];const t=cfg.teams.find(x=>x.name===name)||{name,score:0};if(!cfg.teams.includes(t))cfg.teams.push(t);t.score=Number(t.score||0)+Number(delta||0);await saveWordConfig(cfg);await loadData()};
+window.setTeamScore=async(name,value)=>{const cfg=wordConfig();cfg.teams=cfg.teams||[];const t=cfg.teams.find(x=>x.name===name)||{name,score:0};if(!cfg.teams.includes(t))cfg.teams.push(t);t.score=Number(value||0);await saveWordConfig(cfg);await loadData()};
+
+function lettersFinalHtml(){
+  const list=[...teams()].sort((a,b)=>b.score-a.score);
+  const winner=list[0];
+  if(!winner)return '<div class="winnerBox"><h2>Гра завершена</h2><p class="muted">Команд не було.</p></div>';
+  return `<div class="winnerBox finalShow"><div class="winnerCup">🏆</div><h2>Перемогла команда</h2><div class="winnerPoints">${escapeHtml(winner.name)} · ${winner.score} балів</div></div>`;
+}
 
 
 

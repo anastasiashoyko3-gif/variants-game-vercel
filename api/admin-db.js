@@ -9,7 +9,8 @@ const ALLOWED_TABLES = new Set([
   'answers',
   'votes',
   'points',
-  'question_sets'
+  'question_sets',
+  'word_events'
 ]);
 
 function getSecret(){
