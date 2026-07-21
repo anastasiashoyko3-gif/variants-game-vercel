@@ -81,7 +81,9 @@ async function findGameByInviteCode(code){
 async function refreshState(){
   if(!game||loading)return;
 
-  const wasTyping = document.activeElement && document.activeElement.id === 'answerText';
+  const activeElement = document.activeElement;
+  const wasTyping = activeElement && activeElement.id === 'answerText';
+  const wasTypingWordNote = game?.mode === 'letters' && activeElement && activeElement.tagName === 'TEXTAREA';
   const oldPhase = game?.phase;
   const oldQuestionId = currentQuestion?.id;
 
@@ -98,7 +100,11 @@ async function refreshState(){
       game.phase === 'answering' &&
       oldQuestionId === currentQuestion?.id;
 
-    if(!stillSameAnsweringScreen) render();
+    const stillSameWordNoteScreen =
+      wasTypingWordNote &&
+      oldPhase === game.phase;
+
+    if(!stillSameAnsweringScreen&&!stillSameWordNoteScreen) render();
   }finally{loading=false}
 }
 

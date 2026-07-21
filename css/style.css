@@ -86,16 +86,17 @@ select{width:100%;border:1px solid #e0cfee;background:#f3f7ff;border-radius:18px
 .noteInput textarea{min-height:95px;background:#fff;margin:0}
 .letterTiles{grid-template-columns:repeat(9,minmax(36px,1fr));align-items:center}
 .letterTiles span{display:flex;align-items:center;justify-content:center;aspect-ratio:1;border-radius:18px;background:#fff;border:2px solid var(--line);font-size:clamp(26px,4vw,54px);font-weight:950;box-shadow:0 12px 30px rgba(94,65,135,.1)}
-.paperGrid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
-.paperBall{position:relative;min-height:104px;border-radius:35% 48% 42% 30%;background:#ffd36e;color:#4b2c07;transform:rotate(-3deg);border:0;box-shadow:0 16px 30px rgba(94,65,135,.16);font-weight:950;overflow:hidden}
-.paperBall::before{content:"";position:absolute;inset:14px 16px;background:linear-gradient(135deg,transparent 0 38%,rgba(255,255,255,.34) 39% 43%,transparent 44% 100%),linear-gradient(45deg,transparent 0 46%,rgba(92,55,12,.13) 47% 50%,transparent 51% 100%);border-radius:45% 34% 42% 38%;transform:rotate(9deg)}
-.paperBall::after{content:"";position:absolute;width:42%;height:42%;right:8px;top:10px;border-radius:50%;background:rgba(255,255,255,.22);box-shadow:-28px 34px 0 rgba(92,55,12,.08)}
-.paperBall.paper1{background:#ff9fc2;transform:rotate(4deg)}
-.paperBall.paper2{background:#9fe7ff;transform:rotate(-6deg)}
-.paperBall.paper3{background:#a8f0be;transform:rotate(3deg)}
-.paperBall.paper4{background:#cbb2ff;transform:rotate(-2deg)}
-.paperBall.paper5{background:#ffc49f;transform:rotate(6deg)}
-.paperBall.used{opacity:.55;filter:grayscale(.25)}
+.paperGrid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:18px;align-items:center}
+.paperBall{position:relative;min-height:124px;border:0;background:linear-gradient(135deg,#ffdbe5 0%,#ffc0d0 44%,#ffe7ed 100%);clip-path:polygon(7% 18%,23% 8%,39% 13%,54% 5%,73% 11%,93% 6%,88% 28%,97% 43%,85% 55%,94% 76%,74% 80%,61% 96%,43% 84%,22% 94%,16% 73%,4% 61%,12% 43%);box-shadow:0 20px 34px rgba(94,65,135,.18),inset 0 0 0 3px rgba(157,86,113,.25);transform:rotate(-4deg);overflow:hidden}
+.paperBall::before{content:"";position:absolute;inset:0;background:linear-gradient(36deg,transparent 0 23%,rgba(148,67,96,.28) 24%,transparent 26% 100%),linear-gradient(147deg,transparent 0 38%,rgba(255,255,255,.42) 39%,transparent 45% 100%),linear-gradient(101deg,transparent 0 50%,rgba(148,67,96,.22) 51%,transparent 53% 100%),radial-gradient(circle at 42% 42%,rgba(255,255,255,.42),transparent 24%),radial-gradient(circle at 58% 62%,rgba(164,72,101,.14),transparent 28%)}
+.paperBall::after{content:"";position:absolute;inset:12px 14px;clip-path:polygon(12% 18%,35% 38%,31% 6%,44% 42%,60% 17%,53% 48%,85% 36%,58% 58%,76% 82%,49% 66%,30% 91%,35% 62%,6% 70%,30% 52%);background:linear-gradient(135deg,rgba(156,74,104,.2),rgba(255,255,255,.24));mix-blend-mode:multiply}
+.paperBall.paper1{background:linear-gradient(135deg,#f6d7c8,#e8bfa9 48%,#fff0e8);transform:rotate(3deg)}
+.paperBall.paper2{background:linear-gradient(135deg,#d9f2ff,#aee3f4 48%,#effbff);transform:rotate(-7deg)}
+.paperBall.paper3{background:linear-gradient(135deg,#dcf5df,#b7e8bd 48%,#f4fff5);transform:rotate(5deg)}
+.paperBall.paper4{background:linear-gradient(135deg,#eadfff,#cdbaf8 48%,#f7f1ff);transform:rotate(-2deg)}
+.paperBall.paper5{background:linear-gradient(135deg,#fff1bc,#f7d27b 48%,#fff8df);transform:rotate(7deg)}
+.paperBall:not(:disabled):hover{transform:translateY(-4px) rotate(-2deg);box-shadow:0 24px 42px rgba(94,65,135,.24),inset 0 0 0 3px rgba(157,86,113,.25)}
+.paperBall.used{opacity:.48;filter:grayscale(.35)}
 .secretWord,.turnBox{background:#fff;border:2px solid var(--violet);border-radius:22px;padding:18px;margin:14px 0;font-size:22px;font-weight:900}
 .turnBox{display:flex;align-items:center;gap:10px;border-color:#e8d5a8;background:#fffdf3}
 .teamScore{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px;margin:10px 0}
@@ -103,3 +104,156 @@ select{width:100%;border:1px solid #e0cfee;background:#f3f7ff;border-radius:18px
 .scoreInput{width:78px;text-align:center;margin:0;padding:10px}
 .teamSelect{max-width:220px;margin:0}
 @media(max-width:700px){.letterTiles{grid-template-columns:repeat(3,1fr)}.teamScore{display:block}.teamSelect{max-width:none;margin-top:10px}.paperGrid{grid-template-columns:repeat(2,1fr)}}
+
+/* Dark dotted party skin */
+:root{
+  --bg:#100913;
+  --bg2:#1b0d25;
+  --card:#1a1020;
+  --ink:#fff3ff;
+  --muted:#c8a8d8;
+  --line:#4b285d;
+  --violet:#b76cff;
+  --pink:#ff74b8;
+  --blue:#7ec7ff;
+  --yellow:#ffe17a;
+  --mint:#5ff0b1;
+  --shadow:0 28px 80px rgba(0,0,0,.46),0 0 46px rgba(183,108,255,.12)
+}
+body{
+  color:var(--ink);
+  background:
+    radial-gradient(circle at 20% 8%,rgba(255,116,184,.28),transparent 26%),
+    radial-gradient(circle at 82% 18%,rgba(183,108,255,.22),transparent 28%),
+    radial-gradient(circle at 50% 100%,rgba(126,199,255,.12),transparent 34%),
+    radial-gradient(circle,rgba(255,255,255,.14) 1px,transparent 1.8px),
+    linear-gradient(135deg,#09070d,#17091d 48%,#0b0911);
+  background-size:auto,auto,auto,18px 18px,auto;
+  min-height:100vh;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:72px 72px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.8),rgba(0,0,0,.18));
+}
+.shell{position:relative;z-index:1}
+.eyebrow{color:#ff8dde;text-shadow:0 0 18px rgba(255,116,184,.55)}
+h1{color:#fff6ff;text-shadow:0 0 28px rgba(183,108,255,.4),0 4px 0 rgba(255,116,184,.12)}
+h2,h3{color:#fff7ff}
+.card,.createPanel,.detailsBox,.miniState,.qedit,.viewerWait{
+  background:linear-gradient(180deg,rgba(38,22,47,.94),rgba(23,13,31,.96));
+  border:1px solid rgba(255,141,222,.2);
+  border-radius:18px;
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(10px);
+}
+.card{position:relative;overflow:hidden}
+.card::before,.createPanel::before,.miniState::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:radial-gradient(circle,rgba(255,255,255,.11) 1px,transparent 1.6px);
+  background-size:14px 14px;
+  opacity:.18;
+}
+.card>*,
+.createPanel>*,
+.miniState>*{position:relative}
+input,textarea,select{
+  color:#fff8ff;
+  background:rgba(10,7,15,.7);
+  border:1px solid rgba(255,141,222,.34);
+  border-radius:14px;
+  box-shadow:inset 0 0 0 1px rgba(183,108,255,.08),0 0 0 transparent;
+}
+input::placeholder,textarea::placeholder{color:#a98bb8}
+input:focus,textarea:focus,select:focus{border-color:#ff8dde;box-shadow:0 0 0 3px rgba(255,116,184,.16)}
+button,.button{
+  border-radius:14px;
+  background:linear-gradient(135deg,#ff5fb2,#9b5cff);
+  color:#fff;
+  box-shadow:0 12px 28px rgba(155,92,255,.26),0 0 0 1px rgba(255,255,255,.1) inset;
+}
+button:hover,.button:hover{filter:brightness(1.08)}
+.secondary{background:rgba(255,141,222,.12);color:#ffd8f1;border:1px solid rgba(255,141,222,.28)}
+.danger{background:linear-gradient(135deg,#ff4d86,#de2f62)}
+.linkButton{background:transparent;color:#ff9fe1;box-shadow:none}
+.muted{color:var(--muted)}
+.error{color:#ff6aa6}
+.invite,.statCard,.noteCard,.noteInput,.scoreCard,.playerRow,.liveRow,.revealRow,.lobbyPlayer,.teamScore,.optionPreview,.turnBox,.secretWord{
+  background:rgba(255,255,255,.055);
+  border:1px solid rgba(255,141,222,.22);
+  color:var(--ink);
+}
+.fileLabel,.lettersSetup,.finalNote{
+  background:rgba(183,108,255,.1);
+  border-color:rgba(255,141,222,.32);
+  color:#f7ddff;
+}
+.option,.revealBtn{
+  background:rgba(255,255,255,.06);
+  color:var(--ink);
+  border-color:rgba(255,141,222,.24);
+}
+.pill,.tag{
+  background:rgba(255,116,184,.16);
+  color:#ffb9e5;
+  border:1px solid rgba(255,116,184,.28);
+}
+.timer{
+  color:#160914;
+  background:linear-gradient(135deg,#ffe17a,#ff8dde);
+  box-shadow:0 16px 36px rgba(255,116,184,.24);
+}
+.avatar{background:linear-gradient(135deg,#ff8dde,#7f5cff);color:#fff}
+.letterHero{
+  color:#fff;
+  text-shadow:0 0 26px rgba(255,116,184,.62),0 0 60px rgba(183,108,255,.3);
+}
+.letterTiles span{
+  background:rgba(255,255,255,.08);
+  border-color:rgba(255,141,222,.3);
+  color:#fff;
+  box-shadow:0 12px 34px rgba(0,0,0,.28),0 0 22px rgba(183,108,255,.12);
+}
+.winnerBox,.finalShow,.pausePanel{
+  background:linear-gradient(135deg,rgba(255,116,184,.16),rgba(183,108,255,.12),rgba(255,255,255,.06));
+}
+.progressTrack{background:rgba(255,255,255,.08);border-color:rgba(255,141,222,.24)}
+.progressLabel strong,.scorePoints,.winnerPoints,.podiumPlace span{color:#ffb9e5}
+.podiumPlace{background:rgba(255,255,255,.06);border-color:rgba(255,141,222,.22)}
+.podiumPlace.place1,.podiumPlace.place2,.podiumPlace.place3{background:rgba(255,255,255,.08)}
+.paperGrid{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:22px}
+.paperBall{
+  min-height:136px;
+  background:linear-gradient(135deg,#ffd8e7 0%,#ff9fc0 45%,#ffe9f0 100%);
+  clip-path:polygon(6% 24%,18% 8%,34% 12%,47% 4%,62% 15%,81% 8%,94% 19%,88% 36%,98% 50%,84% 62%,93% 82%,72% 78%,57% 96%,42% 84%,20% 94%,13% 75%,3% 62%,12% 45%);
+  box-shadow:0 24px 42px rgba(0,0,0,.34),0 0 28px rgba(255,116,184,.18),inset 0 0 0 3px rgba(122,55,83,.28);
+}
+.paperBall::before{
+  background:
+    linear-gradient(33deg,transparent 0 23%,rgba(128,48,80,.28) 24%,transparent 26% 100%),
+    linear-gradient(143deg,transparent 0 36%,rgba(255,255,255,.5) 37%,transparent 43% 100%),
+    linear-gradient(92deg,transparent 0 52%,rgba(128,48,80,.22) 53%,transparent 55% 100%),
+    linear-gradient(16deg,transparent 0 61%,rgba(255,255,255,.38) 62%,transparent 68% 100%),
+    radial-gradient(circle at 36% 42%,rgba(255,255,255,.38),transparent 24%),
+    radial-gradient(circle at 63% 60%,rgba(140,46,82,.18),transparent 30%);
+}
+.paperBall::after{background:linear-gradient(135deg,rgba(143,55,87,.24),rgba(255,255,255,.28))}
+.paperBall.paper1{background:linear-gradient(135deg,#ffc7d9,#ff8fb4 48%,#ffe8ef)}
+.paperBall.paper2{background:linear-gradient(135deg,#e0d4ff,#bb99ff 48%,#f3eeff)}
+.paperBall.paper3{background:linear-gradient(135deg,#ffd9f1,#ff9ad5 48%,#fff0f8)}
+.paperBall.paper4{background:linear-gradient(135deg,#d8e2ff,#9aaeff 48%,#f0f3ff)}
+.paperBall.paper5{background:linear-gradient(135deg,#ffe4bd,#ffba76 48%,#fff3df)}
+@media(max-width:700px){
+  h1{font-size:44px}
+  .paperGrid{grid-template-columns:repeat(2,minmax(120px,1fr));gap:14px}
+  .paperBall{min-height:112px}
+}

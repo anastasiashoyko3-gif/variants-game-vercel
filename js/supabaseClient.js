@@ -5,6 +5,10 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_KEY;
 
 if (!supabaseUrl || !supabaseKey) alert('Не знайдено VITE_SUPABASE_URL або VITE_SUPABASE_KEY у Vercel Environment Variables');
 
+if (String(supabaseKey || '').startsWith('sb_secret_')) {
+  alert('У VITE_SUPABASE_KEY вставлено секретний ключ sb_secret. Для VITE_SUPABASE_KEY потрібен anon/public key. Секретний ключ має бути тільки в SUPABASE_SERVICE_ROLE_KEY.');
+}
+
 export const supabase = createClient(supabaseUrl, supabaseKey);
 export const TOTAL_QUESTIONS = 17;
 export const ANSWER_SECONDS = 60;

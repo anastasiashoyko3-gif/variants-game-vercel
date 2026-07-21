@@ -252,10 +252,14 @@ function deadlineLeft(deadline){return deadline?Math.max(0,Number(deadline)-nowS
 function startTimer(){
   const box=$('timerBox');
   if(!box)return;
+  if(['paused_word_round1','paused_word_draw','paused_word_words'].includes(game.phase)){
+    box.textContent=`Пауза · ${Number(game.answer_deadline||0)} сек`;
+    return;
+  }
   const tick=()=>{
     const deadline=game.phase==='voting'?game.vote_deadline:game.answer_deadline;
     const left=deadlineLeft(deadline);
-    box.textContent=`${left} ÑÐµÐº`;
+    box.textContent=`${left} сек`;
     if(left<=0)clearInterval(timerInterval);
   };
   tick();
@@ -268,11 +272,14 @@ function wordConfig(){
 
 function lettersViewerHtml(){
   const cfg=wordConfig();
-  if(game.phase==='finished'||game.status==='finished')return lettersFinalHtml();
-  const left=['word_round1_timer','word_draw_timer','word_words_timer'].includes(game.phase)?deadlineLeft(game.answer_deadline):null;
+  const phase=game.phase;
+  if(phase==='finished'||game.status==='finished')return lettersFinalHtml();
+  const paused=['paused_word_round1','paused_word_draw','paused_word_words'].includes(phase);
+  const left=['word_round1_timer','word_draw_timer','word_words_timer'].includes(phase)?deadlineLeft(game.answer_deadline):paused?Number(game.answer_deadline||0):null;
   return `
-    <div class="pill">Ð¡Ð»Ð¾Ð²ÐµÑÐ½Ð° Ð³Ñ€Ð°</div>
-    ${left!==null?`<div class="timer" id="timerBox">${left} ÑÐµÐº</div>`:''}
+    <div class="pill">Словесна гра</div>
+    ${left!==null?`<div class="timer" id="timerBox">${paused?'Пауза · ':''}${left} сек</div>`:''}
+    ${paused?'<p class="muted">Ведуча поставила таймер на паузу.</p>':''}
     ${lettersViewerRoundHtml(cfg)}
     ${lettersScoreHtml()}
   `;
@@ -280,27 +287,27 @@ function lettersViewerHtml(){
 
 function lettersViewerRoundHtml(cfg){
   const round=Number(cfg.round||1);
-  if(game.phase==='word_lobby')return `<h2>Ð›Ð¾Ð±Ñ–</h2><p class="muted">Ð’ÐµÐ´ÑƒÑ‡Ð° Ð³Ð¾Ñ‚ÑƒÑ” ÐºÐ¾Ð¼Ð°Ð½Ð´Ð¸.</p>${playersListHtml()}`;
+  if(game.phase==='word_lobby')return `<h2>Лобі</h2><p class="muted">Ведуча готує команди.</p>${playersListHtml()}`;
   if(round===1)return `
-    <h2>Ð Ð°ÑƒÐ½Ð´ 1: ÐšÐ°Ñ‚ÐµÐ³Ð¾Ñ€Ñ–Ñ—</h2>
-    <div class="letterHero">${escapeHtml(cfg.letter||'Ð‘ÑƒÐºÐ²Ñƒ Ñ‰Ðµ Ð½Ðµ Ð¾Ð±Ñ€Ð°Ð»Ð¸')}</div>
+    <h2>Раунд 1: Категорії</h2>
+    <div class="letterHero">${escapeHtml(cfg.letter||'Букву ще не обрали')}</div>
     <div class="categoryGrid">${(cfg.categories||[]).map(c=>`<div class="noteCard">${escapeHtml(c)}</div>`).join('')}</div>
-    <p class="muted">Ð“Ñ€Ð°Ð²Ñ†Ñ– Ð¿Ð¸ÑˆÑƒÑ‚ÑŒ Ñƒ Ð±Ð»Ð¾ÐºÐ½Ð¾Ñ‚Ð°Ñ… Ñ– Ð¿Ð¾Ñ‚Ñ–Ð¼ Ð·Ð°Ñ‡Ð¸Ñ‚ÑƒÑŽÑ‚ÑŒ Ð½Ð°Ð¶Ð¸Ð²Ð¾.</p>
+    <p class="muted">Гравці пишуть у блокнотах і потім зачитують наживо.</p>
   `;
   if(round===2){
     const active=players.find(p=>Number(p.id)===Number(cfg.activePlayerId));
     const used=usedDrawIndexes(cfg);
     return `
-      <h2>Ð Ð°ÑƒÐ½Ð´ 2: ÐÐ°Ð¼Ð°Ð»ÑŽÐ¹ Ð·Ð° 5 ÑÐµÐºÑƒÐ½Ð´</h2>
-      <div class="turnBox">${active?`${avatarHtml(active)} <b>${escapeHtml(active.name)}</b> Ð¼Ð°Ð»ÑŽÑ” Ð·Ð°Ñ€Ð°Ð·`:'Ð’ÐµÐ´ÑƒÑ‡Ð° Ð¿Ñ€Ð¸Ð·Ð½Ð°Ñ‡Ð°Ñ” Ñ…Ñ–Ð´'}</div>
+      <h2>Раунд 2: Намалюй за 5 секунд</h2>
+      <div class="turnBox">${active?`${avatarHtml(active)} <b>${escapeHtml(active.name)}</b> малює зараз`:'Ведуча призначає хід'}</div>
       <div class="paperGrid">${(cfg.drawWords||[]).map((w,i)=>`<button class="paperBall paper${i%6} ${used.includes(i)?'used':''}" disabled aria-label="${used.includes(i)?'Взятий папірчик':'Закритий папірчик'}" title="${used.includes(i)?'Взято':'Закритий папірчик'}"></button>`).join('')}</div>
-      <p class="muted">Ð¡ÐµÐºÑ€ÐµÑ‚Ð½Ðµ ÑÐ»Ð¾Ð²Ð¾ Ð±Ð°Ñ‡Ð°Ñ‚ÑŒ Ñ‚Ñ–Ð»ÑŒÐºÐ¸ Ð³Ñ€Ð°Ð²ÐµÑ†ÑŒ Ñ– Ð²ÐµÐ´ÑƒÑ‡Ð°.</p>
+      <p class="muted">Секретне слово бачать тільки гравець і ведуча.</p>
     `;
   }
   return `
-    <h2>Ð Ð°ÑƒÐ½Ð´ 3: Ð¡Ð»Ð¾Ð²Ð¾Ñ‚Ð²Ð¾Ñ€Ñ†Ñ–</h2>
+    <h2>Раунд 3: Словотворці</h2>
     <div class="letterTiles">${(cfg.letters9||[]).map(l=>`<span>${escapeHtml(l)}</span>`).join('')}</div>
-    <p class="muted">ÐšÐ¾Ð¼Ð°Ð½Ð´Ð¸ Ð²Ð¸Ð³Ð°Ð´ÑƒÑŽÑ‚ÑŒ Ð½ÐµÑ–ÑÐ½ÑƒÑŽÑ‡Ðµ ÑÐ»Ð¾Ð²Ð¾ Ð¹ Ð¿Ð¾ÑÑÐ½ÑŽÑŽÑ‚ÑŒ Ð¹Ð¾Ð³Ð¾ Ð½Ð°Ð¶Ð¸Ð²Ð¾.</p>
+    <p class="muted">Команди вигадують неіснуюче слово й пояснюють його наживо.</p>
   `;
 }
 
@@ -313,17 +320,17 @@ function usedDrawIndexes(cfg){
 function lettersScoreHtml(){
   const teams=wordConfig().teams||[];
   if(!teams.length)return '';
-  return `<h2>ÐšÐ¾Ð¼Ð°Ð½Ð´Ð¸</h2>${teams.map(t=>`<div class="teamScore"><b>${escapeHtml(t.name)}</b><span>${Number(t.score||0)} Ð±Ð°Ð»Ñ–Ð²</span></div>`).join('')}`;
+  return `<h2>Команди</h2>${teams.map(t=>`<div class="teamScore"><b>${escapeHtml(t.name)}</b><span>${Number(t.score||0)} балів</span></div>`).join('')}`;
 }
 
 function playersListHtml(){
-  return `<div class="lobbyPlayers">${players.map(p=>`<div class="lobbyPlayer">${avatarHtml(p)}<b>${escapeHtml(p.name)}</b><span>${escapeHtml(p.team_name||'Ð±ÐµÐ· ÐºÐ¾Ð¼Ð°Ð½Ð´Ð¸')}</span></div>`).join('')}</div>`;
+  return `<div class="lobbyPlayers">${players.map(p=>`<div class="lobbyPlayer">${avatarHtml(p)}<b>${escapeHtml(p.name)}</b><span>${escapeHtml(p.team_name||'без команди')}</span></div>`).join('')}</div>`;
 }
 
 function lettersFinalHtml(){
   const teams=[...(wordConfig().teams||[])].sort((a,b)=>Number(b.score||0)-Number(a.score||0));
   const winner=teams[0];
-  return winner?`<div class="winnerBox finalShow"><div class="winnerCup">ðŸ†</div><h2>ÐŸÐµÑ€ÐµÐ¼Ð¾Ð³Ð»Ð° ÐºÐ¾Ð¼Ð°Ð½Ð´Ð°</h2><div class="winnerPoints">${escapeHtml(winner.name)} Â· ${winner.score||0}</div></div>${lettersScoreHtml()}`:'<h2>Ð“Ñ€Ñƒ Ð·Ð°Ð²ÐµÑ€ÑˆÐµÐ½Ð¾</h2>';
+  return winner?`<div class="winnerBox finalShow"><div class="winnerCup">🏆</div><h2>Перемогла команда</h2><div class="winnerPoints">${escapeHtml(winner.name)} · ${winner.score||0}</div></div>${lettersScoreHtml()}`:'<h2>Гру завершено</h2>';
 }
 
 let audioCtx=null;
