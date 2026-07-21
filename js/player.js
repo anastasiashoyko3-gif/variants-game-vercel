@@ -1,10 +1,10 @@
-import { supabase, escapeHtml, avatarHtml, hostAvatarHtml, nowSec, safeJson, uploadPublicFile } from './supabaseClient.js';
+﻿import { supabase, escapeHtml, avatarHtml, hostAvatarHtml, nowSec, safeJson, uploadPublicFile } from './supabaseClient.js';
 
 let game=null, player=null, questions=[], currentQuestion=null, players=[], answers=[], votes=[], wordEvents=[], channel=null, timerInterval=null, pollInterval=null, loading=false;
 const $=id=>document.getElementById(id);
 const joinCard=$('joinCard'), playCard=$('playCard'), stateBox=$('gameState');
 
-const urlCode=new URLSearchParams(location.search).get('code'); if(urlCode)$('inviteCode').value=urlCode;
+const urlCode=new URLSearchParams(location.search).get('code')?.trim()||'';
 $('joinBtn').onclick=joinGame;
 $('leaveBtn').onclick=()=>{localStorage.removeItem('player_game_id');localStorage.removeItem('player_id');location.reload()};
 restorePlayerSession();
@@ -17,9 +17,10 @@ async function restorePlayerSession(){
 }
 
 async function joinGame(){
-  const code=$('inviteCode').value.trim(), name=$('playerName').value.trim(), pin=$('playerPin').value.trim(), password=$('gamePassword').value.trim();
+  const code=urlCode, name=$('playerName').value.trim(), pin=$('playerPin').value.trim(), password=$('gamePassword').value.trim();
   let avatar=$('playerAvatar').value.trim(); const file=$('playerAvatarFile')?.files?.[0];
-  if(!code||!name||!pin||!password){$('joinMsg').textContent='Заповни код, імʼя, PIN і пароль';return}
+  if(!code){$('joinMsg').textContent='Відкрий гру через інвайт-посилання від ведучої.';return}
+  if(!name||!pin||!password){$('joinMsg').textContent='Заповни імʼя, PIN і пароль';return}
   try{if(file)avatar=await uploadPublicFile(file,'player-avatars')}catch(e){$('joinMsg').textContent='Фото не завантажилось: '+e.message;return}
   const {data:foundGame,error:gameErr}=await supabase.from('games').select('*').eq('invite_code',code).single();
   if(gameErr||!foundGame){$('joinMsg').textContent='Гру не знайдено';return}
@@ -323,3 +324,4 @@ function loadWordNote(key){
   return localStorage.getItem(wordNoteKey(key))||'';
 }
 window.saveWordNote=saveWordNote;
+
