@@ -271,7 +271,7 @@ function startTimer(){
 }
 
 function wordConfig(){
-  return safeJson(game?.word_config_json,{round:1,round1Stage:1,categories:[],drawWords:[],usedDrawIndexes:[],letters9:[],teams:[]});
+  return safeJson(game?.word_config_json,{round:1,round1Stage:1,categories:[],drawWords:[],drawOrder:[],usedDrawIndexes:[],drawTurn:0,letters9:[],teams:[]});
 }
 
 function lettersViewerHtml(){
@@ -304,7 +304,7 @@ function lettersViewerRoundHtml(cfg){
     return `
       <h2>Раунд 2: Намалюй за 5 секунд</h2>
       <div class="turnBox">${active?`${avatarHtml(active)} <b>${escapeHtml(active.name)}</b> малює зараз`:'Ведуча призначає хід'}</div>
-      <div class="paperGrid">${(cfg.drawWords||[]).map((w,i)=>`<button class="paperBall paper${i%6} ${used.includes(i)?'used':''}" disabled aria-label="${used.includes(i)?'Взятий папірчик':'Закритий папірчик'}" title="${used.includes(i)?'Взято':'Закритий папірчик'}"></button>`).join('')}</div>
+      <div class="paperGrid">${drawOrder(cfg).map(i=>`<button class="paperBall paper${i%6} ${used.includes(i)?'used':''}" disabled aria-label="${used.includes(i)?'Взятий папірчик':'Закритий папірчик'}" title="${used.includes(i)?'Взято':'Закритий папірчик'}"></button>`).join('')}</div>
       <p class="muted">Секретне слово бачать тільки гравець і ведуча.</p>
     `;
   }
@@ -319,6 +319,13 @@ function usedDrawIndexes(cfg){
   const fromConfig=cfg.usedDrawIndexes||[];
   const fromEvents=wordEvents.filter(e=>e.event_type==='draw_open').map(e=>safeJson(e.payload_json,{}).index).filter(i=>Number.isInteger(Number(i))).map(Number);
   return [...new Set([...fromConfig,...fromEvents])];
+}
+
+function drawOrder(cfg){
+  const total=(cfg.drawWords||[]).length;
+  const saved=(cfg.drawOrder||[]).map(Number).filter(i=>i>=0&&i<total);
+  const missing=Array.from({length:total},(_,i)=>i).filter(i=>!saved.includes(i));
+  return [...saved,...missing];
 }
 
 function lettersScoreHtml(){

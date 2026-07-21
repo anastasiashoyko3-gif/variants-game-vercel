@@ -292,7 +292,7 @@ function startTimer(){
 }
 
 function wordConfig(){
-  return safeJson(game?.word_config_json,{round:1,round1Stage:1,categories:[],drawWords:[],usedDrawIndexes:[],letters9:[],teams:[]});
+  return safeJson(game?.word_config_json,{round:1,round1Stage:1,categories:[],drawWords:[],drawOrder:[],usedDrawIndexes:[],drawTurn:0,letters9:[],teams:[]});
 }
 
 function lettersPlayerHtml(){
@@ -350,14 +350,18 @@ function lockExpiredLetterInputs(){
 
 function drawPlayerHtml(cfg){
   const active=Number(cfg.activePlayerId||0)===Number(player.id);
-  const opened=wordEvents.find(e=>e.event_type==='draw_open'&&Number(e.player_id)===Number(player.id));
+  const turn=Number(cfg.drawTurn||0);
+  const opened=wordEvents.find(e=>{
+    const payload=safeJson(e.payload_json,{});
+    return e.event_type==='draw_open'&&Number(e.player_id)===Number(player.id)&&Number(payload.turn||0)===turn;
+  });
   const payload=safeJson(opened?.payload_json,{});
   const usedIndexes=usedDrawIndexes(cfg);
   return `
     <h2>Раунд 2: Намалюй за 5 секунд</h2>
     ${active?'<p class="finalNote">Твій хід. Обери один папірчик.</p>':'<p class="muted">Чекаємо, кого призначить ведуча.</p>'}
     ${opened?`<div class="secretWord">Твоє слово: <b>${escapeHtml(payload.word||'')}</b></div>`:''}
-    <div class="paperGrid">${(cfg.drawWords||[]).map((w,i)=>{
+    <div class="paperGrid">${drawOrder(cfg).map(i=>{
       const used=usedIndexes.includes(i);
       const can=active&&!opened&&!used&&game.phase==='word_draw_pick';
       return `<button class="paperBall paper${i%6} ${used?'used':''}" ${can?`onclick="openDrawWord(${i})"`:'disabled'} aria-label="${used?'Взятий папірчик':'Закритий папірчик'}" title="${used?'Взято':'Закритий папірчик'}"></button>`;
@@ -371,12 +375,25 @@ function usedDrawIndexes(cfg){
   return [...new Set([...fromConfig,...fromEvents])];
 }
 
+function drawOrder(cfg){
+  const total=(cfg.drawWords||[]).length;
+  const saved=(cfg.drawOrder||[]).map(Number).filter(i=>i>=0&&i<total);
+  const missing=Array.from({length:total},(_,i)=>i).filter(i=>!saved.includes(i));
+  return [...saved,...missing];
+}
+
 async function openDrawWord(index){
   const cfg=wordConfig();
   if(Number(cfg.activePlayerId)!==Number(player.id))return;
-  if((cfg.usedDrawIndexes||[]).includes(index))return;
+  if(usedDrawIndexes(cfg).includes(index))return;
+  const turn=Number(cfg.drawTurn||0);
+  const alreadyOpenedThisTurn=wordEvents.some(e=>{
+    const payload=safeJson(e.payload_json,{});
+    return e.event_type==='draw_open'&&Number(e.player_id)===Number(player.id)&&Number(payload.turn||0)===turn;
+  });
+  if(alreadyOpenedThisTurn)return;
   const word=(cfg.drawWords||[])[index];
-  const {error}=await supabase.from('word_events').insert({game_id:game.id,player_id:player.id,event_type:'draw_open',payload_json:JSON.stringify({index,word}),created_at:new Date().toISOString()});
+  const {error}=await supabase.from('word_events').insert({game_id:game.id,player_id:player.id,event_type:'draw_open',payload_json:JSON.stringify({index,word,turn}),created_at:new Date().toISOString()});
   if(error){alert(error.message);return}
   await refreshState();
 }

@@ -68,14 +68,16 @@ function defaultWordConfig(){
     letters9:[],
     categories,
     drawWords,
+    drawOrder:[],
     usedDrawIndexes:[],
+    drawTurn:0,
     activePlayerId:null,
     teams:[]
   });
 }
 
 function wordConfig(){
-  return safeJson(currentGame?.word_config_json,{round:1,round1Stage:1,categories:[],drawWords:[],usedDrawIndexes:[],teams:[],letters9:[]});
+  return safeJson(currentGame?.word_config_json,{round:1,round1Stage:1,categories:[],drawWords:[],drawOrder:[],usedDrawIndexes:[],drawTurn:0,teams:[],letters9:[]});
 }
 
 async function saveWordConfig(config,extra={}){
@@ -549,7 +551,9 @@ async function saveWordEditor(){
     letters9:[],
     categories,
     drawWords,
+    drawOrder:[],
     usedDrawIndexes:[],
+    drawTurn:0,
     activePlayerId:null,
     teams:resetTeams
   };
@@ -710,6 +714,13 @@ function usedDrawIndexes(cfg){
   return [...new Set([...fromConfig,...fromEvents])];
 }
 
+function drawOrder(cfg){
+  const total=(cfg.drawWords||[]).length;
+  const saved=(cfg.drawOrder||[]).map(Number).filter(i=>i>=0&&i<total);
+  const missing=Array.from({length:total},(_,i)=>i).filter(i=>!saved.includes(i));
+  return [...saved,...missing];
+}
+
 function renderLettersPlayers(){
   const names=teamNames();
   $('playersList').innerHTML=players.length?players.map(p=>`
@@ -800,7 +811,7 @@ function lettersRoundHtml(cfg){
       <p class="muted">Признач гравця, він відкриє один папірчик. Слово бачите тільки ти і він.</p>
       <h3>Хто зараз ходить</h3>
       <div class="turnBox">${active?`${avatarHtml(active)} <b>${escapeHtml(active.name)}</b>`:'Хід ще не призначено'}</div>
-      <div class="paperGrid">${(cfg.drawWords||[]).map((w,i)=>paperHtml(cfg,i,w,false)).join('')}</div>
+      <div class="paperGrid">${drawOrder(cfg).map(i=>paperHtml(cfg,i,(cfg.drawWords||[])[i],false)).join('')}</div>
       ${latest?`<div class="finalNote"><b>${escapeHtml(players.find(p=>Number(p.id)===Number(latest.player_id))?.name||'Гравець')}</b> відкрив/відкрила слово: <b>${escapeHtml(payload.word||'')}</b></div>`:''}
       <div class="actions">
         <button class="secondary" onclick="window.startWordTimer(5)">Старт 5 секунд</button>
@@ -843,7 +854,7 @@ async function nextLettersStage(){
   if(phase==='word_lobby')await saveWordConfig({...cfg,round:1,round1Stage:1},{phase:'word_round1'});
   if(phase==='word_round1')await saveWordConfig(cfg,{phase:'word_round1_timer',answer_deadline:nowSec()+60});
   if(phase==='word_round1_timer')await saveWordConfig(cfg,{phase:'word_round1_review',answer_deadline:null});
-  if(phase==='word_round1_review')await saveWordConfig({...cfg,round:2,activePlayerId:null},{phase:'word_draw'});
+  if(phase==='word_round1_review')await saveWordConfig({...cfg,round:2,drawOrder:shuffle(Array.from({length:(cfg.drawWords||[]).length},(_,i)=>i)),drawTurn:0,activePlayerId:null},{phase:'word_draw'});
   if(phase==='word_draw')await saveWordConfig(cfg,{phase:'word_draw_pick'});
   if(phase==='word_draw_pick')await saveWordConfig(cfg,{phase:'word_draw_timer',answer_deadline:nowSec()+5});
   if(phase==='word_draw_timer')await saveWordConfig(cfg,{phase:'word_draw_review',answer_deadline:null});
@@ -859,7 +870,7 @@ window.startRound1SecondStage=async()=>{const cfg=wordConfig();await saveWordCon
 window.pickNineLetters=async()=>{const cfg=wordConfig();cfg.letters9=nineLetters();await saveWordConfig(cfg,{phase:'word_words'});await loadData()};
 window.startWordTimer=async(sec)=>{await updateGame({answer_deadline:nowSec()+Number(sec||60),phase:Number(wordConfig().round)===2?'word_draw_timer':Number(wordConfig().round)===3?'word_words_timer':'word_round1_timer'});await loadData()};
 window.addTime=async(sec)=>{await updateGame({answer_deadline:Math.max(nowSec(),Number(currentGame.answer_deadline||nowSec()))+Number(sec||10)});await loadData()};
-window.assignDrawPlayer=async(playerId)=>{const cfg=wordConfig();cfg.activePlayerId=Number(playerId);await saveWordConfig(cfg,{phase:'word_draw_pick'});await loadData()};
+window.assignDrawPlayer=async(playerId)=>{const cfg=wordConfig();cfg.activePlayerId=Number(playerId);cfg.drawTurn=Number(cfg.drawTurn||0)+1;await saveWordConfig(cfg,{phase:'word_draw_pick'});await loadData()};
 window.addTeam=async()=>{const name=$('newTeamName')?.value.trim();if(!name)return;const cfg=wordConfig();cfg.teams=cfg.teams||[];if(!cfg.teams.some(t=>t.name===name))cfg.teams.push({name,score:0});await saveWordConfig(cfg);await loadData()};
 window.setPlayerTeam=async(playerId,team)=>{const {error}=await adminDb.from('players').update({team_name:team||null}).eq('id',playerId);if(error)alert(error.message);await loadData()};
 window.adjustTeam=async(name,delta)=>{const cfg=wordConfig();cfg.teams=cfg.teams||[];const t=cfg.teams.find(x=>x.name===name)||{name,score:0};if(!cfg.teams.includes(t))cfg.teams.push(t);t.score=Number(t.score||0)+Number(delta||0);await saveWordConfig(cfg);await loadData()};
