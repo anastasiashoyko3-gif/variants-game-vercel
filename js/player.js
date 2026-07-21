@@ -23,6 +23,7 @@ async function joinGame(){
   if(!name||!pin||!password){$('joinMsg').textContent='Заповни імʼя, PIN і пароль';return}
   try{if(file)avatar=await uploadPublicFile(file,'player-avatars')}catch(e){$('joinMsg').textContent='Фото не завантажилось: '+e.message;return}
   const foundGame=await findGameByInviteCode(code);
+  if(foundGame?.error){$('joinMsg').textContent=foundGame.error;return}
   if(!foundGame){$('joinMsg').textContent=`Гру не знайдено. Код із посилання: ${code}. Скопіюй нове посилання з адмінки.`;return}
   if(password!==(foundGame.game_password||'game123')){$('joinMsg').textContent='Неправильний пароль гри';return}
   game=foundGame;
@@ -66,9 +67,13 @@ async function findGameByInviteCode(code){
   try{
     const res=await fetch(`/api/public-game?code=${encodeURIComponent(normalized)}`);
     const json=await res.json().catch(()=>({}));
-    return res.ok ? json.data : null;
-  }catch{
+    if(res.ok&&json.data)return json.data;
+    if(json.visibleGames===0)return {error:`Гру не знайдено. Vercel зараз бачить 0 ігор у таблиці games. Це майже точно інша Supabase-база в Environment Variables.`};
+    if(Array.isArray(json.latestCodes))return {error:`Гру не знайдено. Код із посилання: ${normalized}. У базі Vercel бачить такі останні коди: ${json.latestCodes.join(', ')||'немає'}.`};
+    if(json.error)return {error:`Гру не знайдено. Сервер відповів: ${json.error}`};
     return null;
+  }catch{
+    return {error:'Гру не знайдено. Серверний пошук /api/public-game не відповів. Перевір, чи нові файли точно завантажені на GitHub і Vercel задеплоївся.'};
   }
 }
 
@@ -262,6 +267,10 @@ function deadlineLeft(deadline){return deadline?Math.max(0,Number(deadline)-nowS
 function startTimer(){
   const box=$('timerBox');
   if(!box)return;
+  if(['paused_word_round1','paused_word_draw','paused_word_words'].includes(game.phase)){
+    box.textContent=`Пауза · ${Number(game.answer_deadline||0)} сек`;
+    return;
+  }
   const tick=()=>{
     const deadline=game.phase==='voting'?game.vote_deadline:game.answer_deadline;
     const left=deadlineLeft(deadline);
@@ -280,10 +289,12 @@ function lettersPlayerHtml(){
   const cfg=wordConfig();
   const phase=game.phase;
   if(phase==='finished'||game.status==='finished')return lettersFinalHtml();
-  const left=['word_round1_timer','word_draw_timer','word_words_timer'].includes(phase)?deadlineLeft(game.answer_deadline):null;
+  const paused=['paused_word_round1','paused_word_draw','paused_word_words'].includes(phase);
+  const left=['word_round1_timer','word_draw_timer','word_words_timer'].includes(phase)?deadlineLeft(game.answer_deadline):paused?Number(game.answer_deadline||0):null;
   return `
     <div class="pill">Словесна гра${player.team_name?` · ${escapeHtml(player.team_name)}`:''}</div>
-    ${left!==null?`<div class="timer" id="timerBox">${left} сек</div>`:''}
+    ${left!==null?`<div class="timer" id="timerBox">${paused?'Пауза · ':''}${left} сек</div>`:''}
+    ${paused?'<p class="muted">Ведуча поставила таймер на паузу.</p>':''}
     ${lettersPlayerRoundHtml(cfg)}
     ${lettersScoreHtml()}
   `;

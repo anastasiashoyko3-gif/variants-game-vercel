@@ -29,6 +29,7 @@ async function joinAsViewer(){
   const code=readInviteCode($('viewerInviteCode').value);
   if(!code){$('viewerJoinMsg').textContent='Ð’Ð²ÐµÐ´Ð¸ ÐºÐ¾Ð´ Ð³Ñ€Ð¸';return}
   const foundGame=await findGameByInviteCode(code);
+  if(foundGame?.error){$('viewerJoinMsg').textContent=foundGame.error;return}
   if(!foundGame){$('viewerJoinMsg').textContent=`Гру не знайдено. Код із посилання: ${code}. Скопіюй нове посилання з адмінки.`;return}
   game=foundGame;
   localStorage.setItem('viewer_game_id',game.id);
@@ -65,9 +66,13 @@ async function findGameByInviteCode(code){
   try{
     const res=await fetch(`/api/public-game?code=${encodeURIComponent(normalized)}`);
     const json=await res.json().catch(()=>({}));
-    return res.ok ? json.data : null;
-  }catch{
+    if(res.ok&&json.data)return json.data;
+    if(json.visibleGames===0)return {error:`Гру не знайдено. Vercel зараз бачить 0 ігор у таблиці games. Це майже точно інша Supabase-база в Environment Variables.`};
+    if(Array.isArray(json.latestCodes))return {error:`Гру не знайдено. Код із посилання: ${normalized}. У базі Vercel бачить такі останні коди: ${json.latestCodes.join(', ')||'немає'}.`};
+    if(json.error)return {error:`Гру не знайдено. Сервер відповів: ${json.error}`};
     return null;
+  }catch{
+    return {error:'Гру не знайдено. Серверний пошук /api/public-game не відповів. Перевір, чи нові файли точно завантажені на GitHub і Vercel задеплоївся.'};
   }
 }
 

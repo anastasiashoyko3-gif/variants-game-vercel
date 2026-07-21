@@ -22,7 +22,7 @@ $('cancelCreateBtn').onclick=()=>hide(createPanel);
 $('gameMode').onchange=()=>toggleLettersSetup();
 $('refreshBtn').onclick=showMenu;
 $('backBtn').onclick=showMenu;
-$('editQuestionsBtn').onclick=()=>{renderQuestionEditor();show(questionEditor)};
+$('editQuestionsBtn').onclick=()=>{isLettersGame()?renderWordEditor():renderQuestionEditor();show(questionEditor)};
 $('closeEditorBtn').onclick=()=>hide(questionEditor);
 $('saveQuestionsBtn').onclick=saveQuestions;
 $('settingsBtn').onclick=openSettings;
@@ -228,7 +228,8 @@ async function openGame(game){
   $('gameName').textContent=game.title;
   $('inviteLink').textContent=`${location.origin}/game.html?code=${game.invite_code}`;
   $('viewerInviteLink').textContent=`${location.origin}/viewer.html?code=${game.invite_code}`;
-  $('editQuestionsBtn').classList.toggle('hidden',game.mode==='letters');
+  $('editQuestionsBtn').classList.remove('hidden');
+  $('editQuestionsBtn').textContent=game.mode==='letters'?'Слова':'Питання';
   $('saveSetBtn').classList.toggle('hidden',game.mode==='letters');
   subscribe(game.id); await loadData(); renderQuestionEditor();
 }
@@ -312,9 +313,9 @@ function renderPauseButton(){
   const btn=$('pauseBtn');
   if(!btn)return;
   const phase=currentGame?.phase;
-  const canPause=['answering','voting','paused_answering','paused_voting'].includes(phase);
+  const canPause=['answering','voting','paused_answering','paused_voting','word_round1_timer','word_draw_timer','word_words_timer','paused_word_round1','paused_word_draw','paused_word_words'].includes(phase);
   btn.disabled=!canPause;
-  btn.textContent=phase==='paused_answering'||phase==='paused_voting'?'Продовжити таймер':'Пауза таймера';
+  btn.textContent=['paused_answering','paused_voting','paused_word_round1','paused_word_draw','paused_word_words'].includes(phase)?'Продовжити таймер':'Пауза таймера';
 }
 
 function renderPlayers(){
@@ -428,6 +429,12 @@ function revealCard(o){
 }
 
 function renderQuestionEditor(){
+  if(isLettersGame()){
+    renderWordEditor();
+    return;
+  }
+  questionEditor.querySelector('h2').textContent='Питання';
+  $('saveQuestionsBtn').textContent='Зберегти питання';
   const byOrder=new Map(questions.map(q=>[Number(q.q_order),q]));
 
   $('questionsForm').innerHTML=Array.from({length:TOTAL_QUESTIONS},(_,i)=>{
@@ -457,6 +464,29 @@ function renderQuestionEditor(){
   attachPhotoPreviews();
 }
 
+function renderWordEditor(){
+  const cfg=wordConfig();
+  const categories=[...(cfg.categories||[])];
+  const drawWords=[...(cfg.drawWords||[])];
+  questionEditor.querySelector('h2').textContent='Категорії та слова';
+  $('saveQuestionsBtn').textContent='Зберегти слова';
+  $('questionsForm').innerHTML=`
+    <div class="qedit">
+      <h3>Раунд 1: категорії</h3>
+      <p class="muted">Після збереження гра повернеться в лобі, а бали команд скинуться.</p>
+      <div class="miniGrid">
+        ${Array.from({length:5},(_,i)=>`<input id="editLetterCat${i}" placeholder="Категорія ${i+1}" value="${escapeHtml(categories[i]||'')}"/>`).join('')}
+      </div>
+    </div>
+    <div class="qedit">
+      <h3>Раунд 2: слова для малювання</h3>
+      <div class="miniGrid">
+        ${Array.from({length:6},(_,i)=>`<input id="editDrawWord${i}" placeholder="Слово ${i+1}" value="${escapeHtml(drawWords[i]||'')}"/>`).join('')}
+      </div>
+    </div>
+  `;
+}
+
 function attachPhotoPreviews(){
   for(let i=0;i<TOTAL_QUESTIONS;i++){
     const input=$(`file_${i}`);
@@ -478,6 +508,10 @@ function attachPhotoPreviews(){
 }
 
 async function saveQuestions(){
+  if(isLettersGame()){
+    await saveWordEditor();
+    return;
+  }
   if(!confirm('Зберегти питання? Відповіді, голоси й бали цієї гри будуть скинуті.'))return;
   const rows=[];
   for(let i=0;i<TOTAL_QUESTIONS;i++){
@@ -495,6 +529,35 @@ async function saveQuestions(){
   if(rows.length){const {error}=await adminDb.from('questions').insert(rows);if(error){alert(error.message);return}}
   await adminDb.from('games').update({current_q:0,phase:'lobby',answer_deadline:null,vote_deadline:null,scoreboard_visible:0,status:'active',finished_at:null}).eq('id',currentGame.id);
   hide(questionEditor);await loadData();alert('Питання збережені');
+}
+
+async function saveWordEditor(){
+  if(!confirm('Зберегти категорії/слова? Раунд, відкриті папірчики й бали цієї гри будуть скинуті.'))return;
+  const cfg=wordConfig();
+  const categories=Array.from({length:5},(_,i)=>$(`editLetterCat${i}`)?.value.trim()).filter(Boolean);
+  const drawWords=Array.from({length:6},(_,i)=>$(`editDrawWord${i}`)?.value.trim()).filter(Boolean);
+  if(!categories.length){alert('Додай хоча б одну категорію.');return}
+  if(!drawWords.length){alert('Додай хоча б одне слово для папірчиків.');return}
+
+  const resetTeams=(cfg.teams||[]).map(team=>({...team,score:0}));
+  const nextCfg={
+    ...cfg,
+    round:1,
+    letter:'',
+    letters9:[],
+    categories,
+    drawWords,
+    usedDrawIndexes:[],
+    activePlayerId:null,
+    teams:resetTeams
+  };
+
+  await adminDb.from('word_events').delete().eq('game_id',currentGame.id);
+  await adminDb.from('players').update({score:0}).eq('game_id',currentGame.id);
+  await saveWordConfig(nextCfg,{phase:'word_lobby',answer_deadline:null,vote_deadline:null,scoreboard_visible:0,status:'active',finished_at:null});
+  hide(questionEditor);
+  await loadData();
+  alert('Слова збережені, бали скинуті');
 }
 
 async function saveCurrentAsSet(){
@@ -560,6 +623,18 @@ async function togglePause(){
     await updateGame({phase:'answering',answer_deadline:nowSec()+Math.max(1,Number(currentGame.answer_deadline||0))});
   }else if(currentGame.phase==='paused_voting'){
     await updateGame({phase:'voting',vote_deadline:nowSec()+Math.max(1,Number(currentGame.vote_deadline||0))});
+  }else if(currentGame.phase==='word_round1_timer'){
+    await updateGame({phase:'paused_word_round1',answer_deadline:leftSec(currentGame.answer_deadline)});
+  }else if(currentGame.phase==='word_draw_timer'){
+    await updateGame({phase:'paused_word_draw',answer_deadline:leftSec(currentGame.answer_deadline)});
+  }else if(currentGame.phase==='word_words_timer'){
+    await updateGame({phase:'paused_word_words',answer_deadline:leftSec(currentGame.answer_deadline)});
+  }else if(currentGame.phase==='paused_word_round1'){
+    await updateGame({phase:'word_round1_timer',answer_deadline:nowSec()+Math.max(1,Number(currentGame.answer_deadline||0))});
+  }else if(currentGame.phase==='paused_word_draw'){
+    await updateGame({phase:'word_draw_timer',answer_deadline:nowSec()+Math.max(1,Number(currentGame.answer_deadline||0))});
+  }else if(currentGame.phase==='paused_word_words'){
+    await updateGame({phase:'word_words_timer',answer_deadline:nowSec()+Math.max(1,Number(currentGame.answer_deadline||0))});
   }
   await loadData();
 }
@@ -676,11 +751,13 @@ function renderLettersAdminState(){
   }
   const cfg=wordConfig();
   const phase=currentGame.phase;
-  const left=['word_round1_timer','word_draw_timer','word_words_timer'].includes(phase)?leftSec(currentGame.answer_deadline):null;
+  const paused=['paused_word_round1','paused_word_draw','paused_word_words'].includes(phase);
+  const left=['word_round1_timer','word_draw_timer','word_words_timer'].includes(phase)?leftSec(currentGame.answer_deadline):paused?Number(currentGame.answer_deadline||0):null;
   $('adminState').innerHTML=`
     <div class="pill">Словесна гра</div>
     <div class="pill">${roundTitle(Number(cfg.round||1))}</div>
-    ${left!==null?`<div class="timer smallTimer">${left} сек</div>`:''}
+    ${left!==null?`<div class="timer smallTimer">${paused?'Пауза · ':''}${left} сек</div>`:''}
+    ${paused?'<div class="finalNote">Таймер на паузі. Натисни “Продовжити таймер”, щоб продовжити раунд.</div>':''}
     ${lettersRoundHtml(cfg)}
   `;
 }
@@ -742,7 +819,7 @@ function paperHtml(cfg,i,word,forPlayer){
 
 function renderLettersHint(){
   const phase=currentGame?.phase;
-  const map={word_lobby:'Далі: запустити раунд 1',word_round1:'Обери букву й запускай таймер',word_round1_timer:'Гравці пишуть відповіді у блокноті',word_round1_review:'Команди зачитують, ти ставиш бали',word_draw:'Признач гравця для папірчика',word_draw_pick:'Гравець відкриває слово',word_draw_timer:'5 секунд на малюнок',word_draw_review:'Команда вгадує, суперники можуть перехопити',word_words:'Згенеруй 9 літер',word_words_timer:'60 секунд на вигадане слово',word_words_review:'Команди пояснюють слова, ти ставиш бали'};
+  const map={word_lobby:'Далі: запустити раунд 1',word_round1:'Обери букву й запускай таймер',word_round1_timer:'Гравці пишуть відповіді у блокноті',paused_word_round1:'Таймер на паузі',word_round1_review:'Команди зачитують, ти ставиш бали',word_draw:'Признач гравця для папірчика',word_draw_pick:'Гравець відкриває слово',word_draw_timer:'5 секунд на малюнок',paused_word_draw:'Таймер на паузі',word_draw_review:'Команда вгадує, суперники можуть перехопити',word_words:'Згенеруй 9 літер',word_words_timer:'60 секунд на вигадане слово',paused_word_words:'Таймер на паузі',word_words_review:'Команди пояснюють слова, ти ставиш бали'};
   $('nextHint').textContent=map[phase]||'';
   $('nextStageBtn').textContent=phase==='word_words_review'?'Завершити гру':'Наступний етап';
 }
@@ -750,6 +827,7 @@ function renderLettersHint(){
 async function nextLettersStage(){
   const cfg=wordConfig();
   const phase=currentGame.phase;
+  if(['paused_word_round1','paused_word_draw','paused_word_words'].includes(phase)){alert('Спочатку продовж таймер.');return}
   if(phase==='word_lobby')await saveWordConfig({...cfg,round:1},{phase:'word_round1'});
   if(phase==='word_round1')await saveWordConfig(cfg,{phase:'word_round1_timer',answer_deadline:nowSec()+60});
   if(phase==='word_round1_timer')await saveWordConfig(cfg,{phase:'word_round1_review',answer_deadline:null});
