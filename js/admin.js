@@ -1,4 +1,4 @@
-import {
+﻿import {
   supabase, makeCode, escapeHtml, avatarHtml, hostAvatarHtml,
   TOTAL_QUESTIONS, ANSWER_SECONDS, VOTE_SECONDS, roundNo, nowSec,
   shuffle, safeJson, uploadPublicFile
@@ -63,6 +63,7 @@ function defaultWordConfig(){
   const drawWords=Array.from({length:6},(_,i)=>$(`drawWord${i}`)?.value.trim()).filter(Boolean);
   return JSON.stringify({
     round:1,
+    round1Stage:1,
     letter:'',
     letters9:[],
     categories,
@@ -74,7 +75,7 @@ function defaultWordConfig(){
 }
 
 function wordConfig(){
-  return safeJson(currentGame?.word_config_json,{round:1,categories:[],drawWords:[],usedDrawIndexes:[],teams:[],letters9:[]});
+  return safeJson(currentGame?.word_config_json,{round:1,round1Stage:1,categories:[],drawWords:[],usedDrawIndexes:[],teams:[],letters9:[]});
 }
 
 async function saveWordConfig(config,extra={}){
@@ -543,6 +544,7 @@ async function saveWordEditor(){
   const nextCfg={
     ...cfg,
     round:1,
+    round1Stage:1,
     letter:'',
     letters9:[],
     categories,
@@ -596,7 +598,12 @@ document.querySelectorAll('[data-action]').forEach(btn=>btn.onclick=()=>doAction
 async function doAction(action){
   if(isLettersGame()&&action==='finish_game'){
     if(!confirm('Завершити гру зараз?'))return;
-    await updateGame({phase:'finished',status:'finished',scoreboard_visible:1,finished_at:new Date().toISOString()});
+    await updateGame({phase:'finished',status:'finished',finished_at:new Date().toISOString()});
+    await loadData();
+    return;
+  }
+  if(isLettersGame()&&(action==='show_scoreboard'||action==='hide_scoreboard')){
+    await updateGame({scoreboard_visible:action==='show_scoreboard'?1:0});
     await loadData();
     return;
   }
@@ -739,7 +746,10 @@ function renderLettersScore(){
 }
 
 function roundTitle(round){
-  if(round===1)return 'Раунд 1: Категорії на літеру';
+  if(round===1){
+    const stage=Number(wordConfig().round1Stage||1);
+    return `Раунд 1: Категорії на літеру · Етап ${stage}`;
+  }
   if(round===2)return 'Раунд 2: Намалюй за 5 секунд';
   return 'Раунд 3: Словотворці';
 }
@@ -770,11 +780,13 @@ function lettersRoundHtml(cfg){
   `;
   if(round===1)return `
     <div class="letterHero">${escapeHtml(cfg.letter||'Букву ще не обрано')}</div>
+    <div class="pill">Етап ${Number(cfg.round1Stage||1)}</div>
     <div class="actions">
       <button onclick="window.pickLetter()">Обрати букву</button>
       <button class="secondary" onclick="window.pickLetter()">Поміняти букву</button>
       <button class="secondary" onclick="window.startWordTimer(60)">Почати 60 секунд</button>
       <button class="secondary" onclick="window.addTime(10)">Додати 10 секунд</button>
+      ${currentGame.phase==='word_round1_review'&&Number(cfg.round1Stage||1)<2?'<button class="secondary" onclick="window.startRound1SecondStage()">Другий етап раунду</button>':''}
     </div>
     <h3>Категорії</h3>
     <div class="categoryGrid">${(cfg.categories||[]).map(c=>`<div class="noteCard">${escapeHtml(c)}</div>`).join('')}</div>
@@ -828,7 +840,7 @@ async function nextLettersStage(){
   const cfg=wordConfig();
   const phase=currentGame.phase;
   if(['paused_word_round1','paused_word_draw','paused_word_words'].includes(phase)){alert('Спочатку продовж таймер.');return}
-  if(phase==='word_lobby')await saveWordConfig({...cfg,round:1},{phase:'word_round1'});
+  if(phase==='word_lobby')await saveWordConfig({...cfg,round:1,round1Stage:1},{phase:'word_round1'});
   if(phase==='word_round1')await saveWordConfig(cfg,{phase:'word_round1_timer',answer_deadline:nowSec()+60});
   if(phase==='word_round1_timer')await saveWordConfig(cfg,{phase:'word_round1_review',answer_deadline:null});
   if(phase==='word_round1_review')await saveWordConfig({...cfg,round:2,activePlayerId:null},{phase:'word_draw'});
@@ -838,11 +850,12 @@ async function nextLettersStage(){
   if(phase==='word_draw_review')await saveWordConfig({...cfg,round:3,activePlayerId:null},{phase:'word_words'});
   if(phase==='word_words')await saveWordConfig({...cfg,letters9:cfg.letters9?.length?cfg.letters9:nineLetters()},{phase:'word_words_timer',answer_deadline:nowSec()+60});
   if(phase==='word_words_timer')await saveWordConfig(cfg,{phase:'word_words_review',answer_deadline:null});
-  if(phase==='word_words_review')await updateGame({phase:'finished',status:'finished',scoreboard_visible:1,finished_at:new Date().toISOString()});
+  if(phase==='word_words_review')await updateGame({phase:'finished',status:'finished',finished_at:new Date().toISOString()});
   await loadData();
 }
 
 window.pickLetter=async()=>{const cfg=wordConfig();cfg.letter=uaLetter();await saveWordConfig(cfg,{phase:'word_round1'});await loadData()};
+window.startRound1SecondStage=async()=>{const cfg=wordConfig();await saveWordConfig({...cfg,round:1,round1Stage:2,letter:''},{phase:'word_round1',answer_deadline:null});await loadData()};
 window.pickNineLetters=async()=>{const cfg=wordConfig();cfg.letters9=nineLetters();await saveWordConfig(cfg,{phase:'word_words'});await loadData()};
 window.startWordTimer=async(sec)=>{await updateGame({answer_deadline:nowSec()+Number(sec||60),phase:Number(wordConfig().round)===2?'word_draw_timer':Number(wordConfig().round)===3?'word_words_timer':'word_round1_timer'});await loadData()};
 window.addTime=async(sec)=>{await updateGame({answer_deadline:Math.max(nowSec(),Number(currentGame.answer_deadline||nowSec()))+Number(sec||10)});await loadData()};
@@ -920,4 +933,5 @@ function renderFinishedAdminScreen(){
   const pauseBtn=$('pauseBtn');
   if(pauseBtn)pauseBtn.disabled=true;
 }
+
 

@@ -144,10 +144,14 @@ function render(){
   let html='';
 
   if(game.mode==='letters'){
+    document.body.classList.add('letters-viewer-mode');
+    viewerCard.classList.add('lettersStage');
     stateBox.innerHTML=lettersViewerHtml();
     startTimer();
     return;
   }
+  document.body.classList.remove('letters-viewer-mode');
+  viewerCard.classList.remove('lettersStage');
 
   if(game.phase==='finished'||game.status==='finished'){
     stateBox.innerHTML=finalScreenHtml();
@@ -267,7 +271,7 @@ function startTimer(){
 }
 
 function wordConfig(){
-  return safeJson(game?.word_config_json,{round:1,categories:[],drawWords:[],usedDrawIndexes:[],letters9:[],teams:[]});
+  return safeJson(game?.word_config_json,{round:1,round1Stage:1,categories:[],drawWords:[],usedDrawIndexes:[],letters9:[],teams:[]});
 }
 
 function lettersViewerHtml(){
@@ -281,7 +285,7 @@ function lettersViewerHtml(){
     ${left!==null?`<div class="timer" id="timerBox">${paused?'Пауза · ':''}${left} сек</div>`:''}
     ${paused?'<p class="muted">Ведуча поставила таймер на паузу.</p>':''}
     ${lettersViewerRoundHtml(cfg)}
-    ${lettersScoreHtml()}
+    ${game.scoreboard_visible?lettersScoreHtml():''}
   `;
 }
 
@@ -289,9 +293,9 @@ function lettersViewerRoundHtml(cfg){
   const round=Number(cfg.round||1);
   if(game.phase==='word_lobby')return `<h2>Лобі</h2><p class="muted">Ведуча готує команди.</p>${playersListHtml()}`;
   if(round===1)return `
-    <h2>Раунд 1: Категорії</h2>
+    <h2>Раунд 1: Категорії · Етап ${Number(cfg.round1Stage||1)}</h2>
     <div class="letterHero">${escapeHtml(cfg.letter||'Букву ще не обрали')}</div>
-    <div class="categoryGrid">${(cfg.categories||[]).map(c=>`<div class="noteCard">${escapeHtml(c)}</div>`).join('')}</div>
+    <div class="categoryGrid stageCategoryGrid">${(cfg.categories||[]).map(c=>`<div class="noteCard stageCategoryCard">${escapeHtml(c)}</div>`).join('')}</div>
     <p class="muted">Гравці пишуть у блокнотах і потім зачитують наживо.</p>
   `;
   if(round===2){
@@ -330,7 +334,7 @@ function playersListHtml(){
 function lettersFinalHtml(){
   const teams=[...(wordConfig().teams||[])].sort((a,b)=>Number(b.score||0)-Number(a.score||0));
   const winner=teams[0];
-  return winner?`<div class="winnerBox finalShow"><div class="winnerCup">🏆</div><h2>Перемогла команда</h2><div class="winnerPoints">${escapeHtml(winner.name)} · ${winner.score||0}</div></div>${lettersScoreHtml()}`:'<h2>Гру завершено</h2>';
+  return winner?`<div class="winnerBox finalShow"><div class="winnerCup">🏆</div><h2>Перемогла команда</h2><div class="winnerPoints">${escapeHtml(winner.name)} · ${winner.score||0}</div></div>${game.scoreboard_visible?lettersScoreHtml():''}`:'<h2>Гру завершено</h2>';
 }
 
 let audioCtx=null;

@@ -292,7 +292,7 @@ function startTimer(){
 }
 
 function wordConfig(){
-  return safeJson(game?.word_config_json,{round:1,categories:[],drawWords:[],usedDrawIndexes:[],letters9:[],teams:[]});
+  return safeJson(game?.word_config_json,{round:1,round1Stage:1,categories:[],drawWords:[],usedDrawIndexes:[],letters9:[],teams:[]});
 }
 
 function lettersPlayerHtml(){
@@ -306,7 +306,6 @@ function lettersPlayerHtml(){
     ${left!==null?`<div class="timer" id="timerBox">${paused?'Пауза · ':''}${left} сек</div>`:''}
     ${paused?'<p class="muted">Ведуча поставила таймер на паузу.</p>':''}
     ${lettersPlayerRoundHtml(cfg)}
-    ${lettersScoreHtml()}
   `;
 }
 
@@ -316,9 +315,9 @@ function lettersPlayerRoundHtml(cfg){
   const round3Locked=!isWordInputOpen('r3');
   if(game.phase==='word_lobby')return `<h2>Лобі</h2><p class="muted">Чекаємо старт від ведучої.</p>${playersListHtml()}`;
   if(round===1)return `
-    <h2>Раунд 1: Категорії</h2>
+    <h2>Раунд 1: Категорії · Етап ${Number(cfg.round1Stage||1)}</h2>
     <div class="letterHero">${escapeHtml(cfg.letter||'Букву ще не обрали')}</div>
-    <div class="notebookGrid">${(cfg.categories||[]).map((c,i)=>`<label class="noteInput"><b>${escapeHtml(c)}</b><textarea data-word-note="r1" oninput="saveWordNote('r1_${i}',this.value)" placeholder="Твоя відповідь" ${round1Locked?'disabled':''}>${escapeHtml(loadWordNote(`r1_${i}`))}</textarea></label>`).join('')}</div>
+    <div class="notebookGrid">${(cfg.categories||[]).map((c,i)=>`<label class="noteInput"><b>${escapeHtml(c)}</b><textarea data-word-note="r1" oninput="saveWordNote('${round1NoteKey(i)}',this.value)" placeholder="Твоя відповідь" ${round1Locked?'disabled':''}>${escapeHtml(loadWordNote(round1NoteKey(i)))}</textarea></label>`).join('')}</div>
     <p class="muted">${round1Locked?'Час вийшов. Відповіді вже не редагуються.':'Після таймера зачитуйте відповіді наживо.'}</p>
   `;
   if(round===2)return drawPlayerHtml(cfg);
@@ -334,6 +333,11 @@ function isWordInputOpen(kind){
   if(kind==='r1')return game?.phase==='word_round1_timer'&&deadlineLeft(game.answer_deadline)>0;
   if(kind==='r3')return game?.phase==='word_words_timer'&&deadlineLeft(game.answer_deadline)>0;
   return false;
+}
+
+function round1NoteKey(index){
+  const stage=Number(wordConfig().round1Stage||1);
+  return stage>1?`r1s${stage}_${index}`:`r1_${index}`;
 }
 
 function lockExpiredLetterInputs(){
@@ -391,7 +395,7 @@ function playersListHtml(){
 function lettersFinalHtml(){
   const teams=[...(wordConfig().teams||[])].sort((a,b)=>Number(b.score||0)-Number(a.score||0));
   const winner=teams[0];
-  return winner?`<div class="winnerBox finalShow"><div class="winnerCup">🏆</div><h2>Перемогла команда</h2><div class="winnerPoints">${escapeHtml(winner.name)} · ${winner.score||0}</div></div>${lettersScoreHtml()}`:'<h2>Гру завершено</h2>';
+  return winner?`<div class="winnerBox finalShow"><div class="winnerCup">🏆</div><h2>Перемогла команда</h2><div class="winnerPoints">${escapeHtml(winner.name)}</div></div>`:'<h2>Гру завершено</h2>';
 }
 
 function wordNoteKey(key){
@@ -399,7 +403,7 @@ function wordNoteKey(key){
 }
 
 function saveWordNote(key,value){
-  if(key.startsWith('r1_')&&!isWordInputOpen('r1'))return;
+  if((key.startsWith('r1_')||key.startsWith('r1s'))&&!isWordInputOpen('r1'))return;
   if(key.startsWith('r3_')&&!isWordInputOpen('r3'))return;
   localStorage.setItem(wordNoteKey(key),value);
 }
