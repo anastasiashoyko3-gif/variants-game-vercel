@@ -320,7 +320,7 @@ function usedDrawIndexes(cfg){
 function lettersScoreHtml(){
   const teams=wordConfig().teams||[];
   if(!teams.length)return '';
-  return `<h2>Команди</h2>${teams.map(t=>`<div class="teamScore"><b>${escapeHtml(t.name)}</b><span>${Number(t.score||0)} балів</span></div>`).join('')}`;
+  return `<div class="ledScoreboard" aria-label="Рахунок команд">${teams.map(t=>`<span>${Number(t.score||0)}</span>`).join('<em>:</em>')}</div>`;
 }
 
 function playersListHtml(){

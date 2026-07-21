@@ -321,7 +321,7 @@ function lettersPlayerRoundHtml(cfg){
     <h2>Раунд 3: Словотворці</h2>
     <div class="letterTiles">${(cfg.letters9||[]).map(l=>`<span>${escapeHtml(l)}</span>`).join('')}</div>
     <label class="noteInput"><b>Неіснуюче слово</b><textarea oninput="saveWordNote('r3_word',this.value)" placeholder="Наприклад: лосрано">${escapeHtml(loadWordNote('r3_word'))}</textarea></label>
-    <label class="noteInput"><b>Що воно означає</b><textarea oninput="saveWordNote('r3_meaning',this.value)" placeholder="Пояснення зачитуєте наживо">${escapeHtml(loadWordNote('r3_meaning'))}</textarea></label>
+    <p class="muted">Пояснення команда придумує і зачитує наживо.</p>
   `;
 }
 
