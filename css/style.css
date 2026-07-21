@@ -267,6 +267,12 @@ button:hover,.button:hover{filter:brightness(1.08)}
   color:#fff8ff!important;
 }
 .qedit input::placeholder,.qedit textarea::placeholder,.noteInput textarea::placeholder{color:#b896c9}
+.noteInput textarea:disabled{
+  opacity:.66;
+  cursor:not-allowed;
+  background:rgba(10,7,15,.48)!important;
+  color:#cdb2da!important;
+}
 button:disabled,.button:disabled,.secondary:disabled{
   opacity:.58;
   cursor:not-allowed;

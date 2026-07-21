@@ -282,7 +282,10 @@ function startTimer(){
     const deadline=game.phase==='voting'?game.vote_deadline:game.answer_deadline;
     const left=deadlineLeft(deadline);
     box.textContent=`${left} сек`;
-    if(left<=0)clearInterval(timerInterval);
+    if(left<=0){
+      lockExpiredLetterInputs();
+      clearInterval(timerInterval);
+    }
   };
   tick();
   timerInterval=setInterval(tick,1000);
@@ -309,20 +312,36 @@ function lettersPlayerHtml(){
 
 function lettersPlayerRoundHtml(cfg){
   const round=Number(cfg.round||1);
+  const round1Locked=!isWordInputOpen('r1');
+  const round3Locked=!isWordInputOpen('r3');
   if(game.phase==='word_lobby')return `<h2>Лобі</h2><p class="muted">Чекаємо старт від ведучої.</p>${playersListHtml()}`;
   if(round===1)return `
     <h2>Раунд 1: Категорії</h2>
     <div class="letterHero">${escapeHtml(cfg.letter||'Букву ще не обрали')}</div>
-    <div class="notebookGrid">${(cfg.categories||[]).map((c,i)=>`<label class="noteInput"><b>${escapeHtml(c)}</b><textarea oninput="saveWordNote('r1_${i}',this.value)" placeholder="Твоя відповідь">${escapeHtml(loadWordNote(`r1_${i}`))}</textarea></label>`).join('')}</div>
-    <p class="muted">Після таймера зачитуйте відповіді наживо.</p>
+    <div class="notebookGrid">${(cfg.categories||[]).map((c,i)=>`<label class="noteInput"><b>${escapeHtml(c)}</b><textarea data-word-note="r1" oninput="saveWordNote('r1_${i}',this.value)" placeholder="Твоя відповідь" ${round1Locked?'disabled':''}>${escapeHtml(loadWordNote(`r1_${i}`))}</textarea></label>`).join('')}</div>
+    <p class="muted">${round1Locked?'Час вийшов. Відповіді вже не редагуються.':'Після таймера зачитуйте відповіді наживо.'}</p>
   `;
   if(round===2)return drawPlayerHtml(cfg);
   return `
     <h2>Раунд 3: Словотворці</h2>
     <div class="letterTiles">${(cfg.letters9||[]).map(l=>`<span>${escapeHtml(l)}</span>`).join('')}</div>
-    <label class="noteInput"><b>Неіснуюче слово</b><textarea oninput="saveWordNote('r3_word',this.value)" placeholder="Наприклад: лосрано">${escapeHtml(loadWordNote('r3_word'))}</textarea></label>
-    <p class="muted">Пояснення команда придумує і зачитує наживо.</p>
+    <label class="noteInput"><b>Неіснуюче слово</b><textarea data-word-note="r3" oninput="saveWordNote('r3_word',this.value)" placeholder="Наприклад: лосрано" ${round3Locked?'disabled':''}>${escapeHtml(loadWordNote('r3_word'))}</textarea></label>
+    <p class="muted">${round3Locked?'Час вийшов. Слово вже не редагується.':'Пояснення команда придумує і зачитує наживо.'}</p>
   `;
+}
+
+function isWordInputOpen(kind){
+  if(kind==='r1')return game?.phase==='word_round1_timer'&&deadlineLeft(game.answer_deadline)>0;
+  if(kind==='r3')return game?.phase==='word_words_timer'&&deadlineLeft(game.answer_deadline)>0;
+  return false;
+}
+
+function lockExpiredLetterInputs(){
+  if(game?.mode!=='letters')return;
+  const kind=game.phase==='word_round1_timer'?'r1':game.phase==='word_words_timer'?'r3':'';
+  if(!kind)return;
+  if(isWordInputOpen(kind))return;
+  document.querySelectorAll(`[data-word-note="${kind}"]`).forEach(el=>{el.disabled=true});
 }
 
 function drawPlayerHtml(cfg){
@@ -380,6 +399,8 @@ function wordNoteKey(key){
 }
 
 function saveWordNote(key,value){
+  if(key.startsWith('r1_')&&!isWordInputOpen('r1'))return;
+  if(key.startsWith('r3_')&&!isWordInputOpen('r3'))return;
   localStorage.setItem(wordNoteKey(key),value);
 }
 
