@@ -52,6 +52,17 @@ async function findGameByInviteCode(code){
   const normalized=normalizeInviteCode(code);
   if(!normalized)return null;
 
+  try{
+    const res=await fetch(`/api/public-game?code=${encodeURIComponent(normalized)}`);
+    const json=await res.json().catch(()=>({}));
+    if(res.ok&&json.data)return json.data;
+    if(json.visibleGames===0)return {error:`Гру не знайдено. Vercel зараз бачить 0 ігор у таблиці games. Це майже точно інша Supabase-база в Environment Variables.`};
+    if(Array.isArray(json.latestCodes))return {error:`Гру не знайдено. Код із посилання: ${normalized}. У базі Vercel бачить такі останні коди: ${json.latestCodes.join(', ')||'немає'}.`};
+    if(json.error&&json.error!=='Game not found')return {error:`Гру не знайдено. Сервер відповів: ${json.error}`};
+  }catch{
+    // If the API route is not available yet, keep trying direct Supabase reads below.
+  }
+
   const exact=await supabase.from('games').select('*').eq('invite_code',normalized).maybeSingle();
   if(!exact.error&&exact.data)return exact.data;
 
@@ -63,17 +74,7 @@ async function findGameByInviteCode(code){
   const localMatch=(data||[]).find(item=>normalizeInviteCode(item.invite_code)===normalized);
   if(localMatch)return localMatch;
 
-  try{
-    const res=await fetch(`/api/public-game?code=${encodeURIComponent(normalized)}`);
-    const json=await res.json().catch(()=>({}));
-    if(res.ok&&json.data)return json.data;
-    if(json.visibleGames===0)return {error:`Гру не знайдено. Vercel зараз бачить 0 ігор у таблиці games. Це майже точно інша Supabase-база в Environment Variables.`};
-    if(Array.isArray(json.latestCodes))return {error:`Гру не знайдено. Код із посилання: ${normalized}. У базі Vercel бачить такі останні коди: ${json.latestCodes.join(', ')||'немає'}.`};
-    if(json.error)return {error:`Гру не знайдено. Сервер відповів: ${json.error}`};
-    return null;
-  }catch{
-    return {error:'Гру не знайдено. Серверний пошук /api/public-game не відповів. Перевір, чи нові файли точно завантажені на GitHub і Vercel задеплоївся.'};
-  }
+  return {error:`Гру не знайдено. Нова версія пошуку працює, але код ${normalized} не знайдено ні через сервер, ні напряму через Supabase.`};
 }
 
 function openViewerScreen(){
