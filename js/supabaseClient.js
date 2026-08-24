@@ -35,7 +35,7 @@ export function nowSec(){return Math.floor(Date.now()/1000);}
 export function shuffle(arr){return [...arr].sort(()=>Math.random()-0.5);}
 export function safeJson(value,fallback=[]){if(!value)return fallback;if(Array.isArray(value))return value;try{return JSON.parse(value)}catch{return fallback}}
 export function escapeHtml(text){return String(text??'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[m]));}
-export function avatarHtml(person,size=''){const avatar=(person&&person.avatar)||'';const cls=`avatar ${size}`.trim();if(avatar.startsWith('http'))return `<span class="${cls}" style="background-image:url('${escapeHtml(avatar)}')"></span>`;return `<span class="${cls}">${escapeHtml(avatar||((person&&person.name)||'?')[0])}</span>`;}
+export function avatarHtml(person,size=''){const avatar=(person&&person.avatar)||'';const cls=`avatar ${size}`.trim();if(/^https?:\/\//i.test(avatar))return `<span class="${cls}"><img src="${escapeHtml(avatar)}" alt="" loading="lazy"></span>`;return `<span class="${cls}">${escapeHtml(avatar||((person&&person.name)||'?')[0])}</span>`;}
 export function hostAvatarHtml(game,size=''){return avatarHtml({name:'Ведуча',avatar:(game&&game.host_avatar)||'👑'},size);}
 export async function uploadPublicFile(file,folder='uploads'){
   if(!file)return '';

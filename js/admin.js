@@ -680,6 +680,9 @@ function subscribe(gameId){
 }
 function leftSec(deadline){if(!deadline)return 0;return Math.max(0,Number(deadline)-nowSec())}
 setInterval(()=>{
+  if(currentGame&&!loading)loadData();
+},1500);
+setInterval(()=>{
   if(!currentGame)return;
   const timedPhases=['answering','voting','word_round1_timer','word_draw_timer','word_words_timer'];
   if(!timedPhases.includes(currentGame.phase))return;
