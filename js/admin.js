@@ -7,6 +7,7 @@ import { adminDb } from './adminDb.js';
 
 let currentGame=null, games=[], sets=[], questions=[], players=[], answers=[], votes=[], wordEvents=[], channel=null, loading=false;
 let guardedNextUntil=0;
+let lastRenderedData='';
 
 const $=id=>document.getElementById(id);
 const loginCard=$('loginCard'), menuCard=$('menuCard'), createPanel=$('createPanel'), gameCard=$('gameCard');
@@ -226,7 +227,7 @@ async function insertQuestions(gameId,source){
 async function duplicateCurrentGame(){if(!currentGame)return;await window.duplicateGameById(currentGame.id);alert('Гру продубльовано')}
 
 async function openGame(game){
-  currentGame=game; localStorage.setItem('current_game_id',game.id);
+  currentGame=game; lastRenderedData=''; localStorage.setItem('current_game_id',game.id);
   hide(loginCard);hide(menuCard);show(gameCard);
   $('gameName').textContent=game.title;
   $('inviteLink').textContent=`${location.origin}/game.html?code=${game.invite_code}`;
@@ -272,7 +273,11 @@ async function loadData(){
       const [aRes,vRes]=await Promise.all([adminDb.from('answers').select('*').eq('question_id',q.id),adminDb.from('votes').select('*').eq('question_id',q.id)]);
       answers=aRes.data||[];votes=vRes.data||[];
     }else{answers=[];votes=[]}
-    renderAll();
+    const nextRenderedData=JSON.stringify({currentGame,questions,players,answers,votes,wordEvents});
+    if(nextRenderedData!==lastRenderedData){
+      lastRenderedData=nextRenderedData;
+      renderAll();
+    }
   }finally{loading=false}
 }
 
@@ -687,7 +692,11 @@ setInterval(()=>{
   const timedPhases=['answering','voting','word_round1_timer','word_draw_timer','word_words_timer'];
   if(!timedPhases.includes(currentGame.phase))return;
   if(isLettersGame())renderLettersAdminState();
-  else renderAdminState();
+  else{
+    const timer=$('adminState')?.querySelector('.smallTimer');
+    const deadline=currentGame.phase==='voting'?currentGame.vote_deadline:currentGame.answer_deadline;
+    if(timer)timer.textContent=`${leftSec(deadline)} сек`;
+  }
 },1000);
 
 function teamNames(){
