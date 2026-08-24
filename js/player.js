@@ -57,11 +57,11 @@ async function findGameByInviteCode(code){
     const res=await fetch(`/api/public-game?code=${encodeURIComponent(normalized)}`);
     const json=await res.json().catch(()=>({}));
     if(res.ok&&json.data)return json.data;
-    if(json.visibleGames===0)return {error:`Гру не знайдено. Vercel зараз бачить 0 ігор у таблиці games. Це майже точно інша Supabase-база в Environment Variables.`};
+    if(json.visibleGames===0)return {error:`Гру не знайдено. Vercel зараз бачить 0 ігор у таблиці games. Перевір DATABASE_URL у Environment Variables.`};
     if(Array.isArray(json.latestCodes))return {error:`Гру не знайдено. Код із посилання: ${normalized}. У базі Vercel бачить такі останні коди: ${json.latestCodes.join(', ')||'немає'}.`};
     if(json.error&&json.error!=='Game not found')return {error:`Гру не знайдено. Сервер відповів: ${json.error}`};
   }catch{
-    // If the API route is not available yet, keep trying direct Supabase reads below.
+    // Якщо пошук за кодом не відповів, перевіряємо гру через загальний API.
   }
 
   const exact=await supabase.from('games').select('*').eq('invite_code',normalized).maybeSingle();
@@ -75,7 +75,7 @@ async function findGameByInviteCode(code){
   const localMatch=(data||[]).find(item=>normalizeInviteCode(item.invite_code)===normalized);
   if(localMatch)return localMatch;
 
-  return {error:`Гру не знайдено. Нова версія пошуку працює, але код ${normalized} не знайдено ні через сервер, ні напряму через Supabase.`};
+  return {error:`Гру не знайдено. Код ${normalized} відсутній у базі Neon.`};
 }
 
 async function refreshState(){

@@ -1,19 +1,33 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_KEY;
-
-if (!supabaseUrl || !supabaseKey) alert('Не знайдено VITE_SUPABASE_URL або VITE_SUPABASE_KEY у Vercel Environment Variables');
-
-if (String(supabaseKey || '').startsWith('sb_secret_')) {
-  alert('У VITE_SUPABASE_KEY вставлено секретний ключ sb_secret. Для VITE_SUPABASE_KEY потрібен anon/public key. Секретний ключ має бути тільки в SUPABASE_SERVICE_ROLE_KEY.');
+class GameQuery {
+  constructor(table){this.payload={table,filters:[],columns:'*'}}
+  select(columns='*'){this.payload.operation=this.payload.operation||'select';this.payload.columns=columns;return this}
+  insert(values){this.payload.operation='insert';this.payload.values=values;return this}
+  update(values){this.payload.operation='update';this.payload.values=values;return this}
+  upsert(values,options={}){this.payload.operation='upsert';this.payload.values=values;this.payload.upsertOptions=options;return this}
+  eq(column,value){this.payload.filters.push({type:'eq',column,value});return this}
+  ilike(column,value){this.payload.filters.push({type:'ilike',column,value});return this}
+  order(column,options={}){this.payload.order={column,ascending:options.ascending!==false};return this}
+  single(){this.payload.single=true;return this.execute()}
+  maybeSingle(){this.payload.maybeSingle=true;return this.execute()}
+  async execute(){
+    try{
+      const res=await fetch('/api/game-db',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(this.payload)});
+      const json=await res.json().catch(()=>({}));
+      return res.ok?{data:json.data,error:null}:{data:null,error:{message:json.error||'Database error'}};
+    }catch(error){return {data:null,error:{message:error.message||'Network error'}}}
+  }
+  then(resolve,reject){return this.execute().then(resolve,reject)}
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+const emptyChannel={on(){return this},subscribe(callback){callback?.('POLLING');return this}};
+export const supabase={
+  from(table){return new GameQuery(table)},
+  channel(){return Object.create(emptyChannel)},
+  removeChannel(){}
+};
 export const TOTAL_QUESTIONS = 17;
 export const ANSWER_SECONDS = 60;
 export const VOTE_SECONDS = 45;
-export const PHOTO_BUCKET = 'game-photos';
 
 export function makeCode(){const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let out='';for(let i=0;i<8;i++)out+=chars[Math.floor(Math.random()*chars.length)];return out;}
 export function roundNo(i){if(i<6)return 1;if(i<12)return 2;return 3;}
@@ -23,4 +37,11 @@ export function safeJson(value,fallback=[]){if(!value)return fallback;if(Array.i
 export function escapeHtml(text){return String(text??'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[m]));}
 export function avatarHtml(person,size=''){const avatar=(person&&person.avatar)||'';const cls=`avatar ${size}`.trim();if(avatar.startsWith('http'))return `<span class="${cls}" style="background-image:url('${escapeHtml(avatar)}')"></span>`;return `<span class="${cls}">${escapeHtml(avatar||((person&&person.name)||'?')[0])}</span>`;}
 export function hostAvatarHtml(game,size=''){return avatarHtml({name:'Ведуча',avatar:(game&&game.host_avatar)||'👑'},size);}
-export async function uploadPublicFile(file,folder='uploads'){if(!file)return '';const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'');const filePath=`${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;const {error}=await supabase.storage.from(PHOTO_BUCKET).upload(filePath,file,{cacheControl:'3600',upsert:true});if(error)throw error;const {data}=supabase.storage.from(PHOTO_BUCKET).getPublicUrl(filePath);return data.publicUrl;}
+export async function uploadPublicFile(file,folder='uploads'){
+  if(!file)return '';
+  const dataUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Не вдалося прочитати файл'));reader.readAsDataURL(file)});
+  const res=await fetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file:dataUrl,folder})});
+  const json=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(json.error||'Не вдалося завантажити фото');
+  return json.url;
+}

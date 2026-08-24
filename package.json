@@ -1,5 +1,6 @@
 {
+  "type":"module",
   "scripts":{"dev":"vite --host 0.0.0.0","build":"vite build","preview":"vite preview --host 0.0.0.0"},
-  "dependencies":{"vite":"^6.0.0","@supabase/supabase-js":"^2.47.0"},
+  "dependencies":{"vite":"^6.0.0","@neondatabase/serverless":"^1.0.1","cloudinary":"^2.7.0"},
   "devDependencies":{}
 }
