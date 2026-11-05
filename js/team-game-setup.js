@@ -79,6 +79,7 @@ function drawPrompts(){
 async function openGame(id){
  const data=await request('/api/team-game-admin',{action:'details',gameId:id});
  selectedGame=id;
+ window.teamSelectedGameId=id;
  $('livePanel').classList.remove('hidden');
  loadLive().catch(e=>message(e.message));
  $('editor').classList.remove('hidden');
