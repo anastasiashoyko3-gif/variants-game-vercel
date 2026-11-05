@@ -17,8 +17,14 @@ export default async function handler(req,res){
    if(g.status!=='setup')return res.status(409).json({error:'Гра вже почалася'});
    const count=await sql.query('SELECT team_id,count(*)::int AS n FROM team_association_words WHERE game_id=$1 GROUP BY team_id',[id]);
    if(teams.some(t=>!count.some(c=>String(c.team_id)===String(t.id)&&c.n>0)))return res.status(409).json({error:'Додай слова обом командам'});
-   const updated=await sql.query("UPDATE team_games SET status='playing',current_round=1,phase='round1_play',active_team_id=$2,current_item=0,round_paused_seconds=NULL,round_deadline=now()+interval '90 seconds' WHERE id=$1 AND status='setup' RETURNING id",[id,teams[0].id]);
+   const updated=await sql.query("UPDATE team_games SET status='playing',current_round=1,phase='round1_ready',active_team_id=$2,current_item=0,round_paused_seconds=90,round_deadline=NULL WHERE id=$1 AND status='setup' RETURNING id",[id,teams[0].id]);
    if(!updated.length)return res.status(409).json({error:'Гру вже запущено'});
+   return res.status(200).json({ok:true});
+  }
+  if(action==='startTimer'){
+   if(g.status!=='playing'||g.phase!=='round1_ready')return res.status(409).json({error:'Команда ще не готова до запуску'});
+   const updated=await sql.query("UPDATE team_games SET phase='round1_play',round_paused_seconds=NULL,round_deadline=now()+interval '90 seconds' WHERE id=$1 AND phase='round1_ready' RETURNING id",[id]);
+   if(!updated.length)return res.status(409).json({error:'Таймер уже запущено'});
    return res.status(200).json({ok:true});
   }
   if(action==='score'){
@@ -47,7 +53,7 @@ export default async function handler(req,res){
   }
   if(action==='nextTeam'){
    if(g.phase!=='round1_team_done'||String(g.active_team_id)!==String(teams[0].id))return res.status(409).json({error:'Спочатку заверши першу команду'});
-   await sql.query("UPDATE team_games SET phase='round1_play',active_team_id=$2,current_item=0,round_deadline=now()+interval '90 seconds' WHERE id=$1 AND phase='round1_team_done' AND active_team_id=$3",[id,teams[1].id,teams[0].id]);
+   await sql.query("UPDATE team_games SET phase='round1_ready',active_team_id=$2,current_item=0,round_paused_seconds=90,round_deadline=NULL WHERE id=$1 AND phase='round1_team_done' AND active_team_id=$3",[id,teams[1].id,teams[0].id]);
    return res.status(200).json({ok:true});
   }
   if(action==='finishRound'){
