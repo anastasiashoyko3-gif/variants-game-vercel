@@ -1,5 +1,26 @@
 const $=id=>document.getElementById(id);
 let selectedGame=null, prompts=[];
+function drawBoard(cards){
+ $('board').replaceChildren();
+ const colors={blue:'#9cc7ff',red:'#ffacbd',neutral:'#e5e1d9',black:'#43404b'};
+ cards.forEach(card=>{
+  const cell=document.createElement('div');
+  cell.textContent=card.word;
+  cell.style.cssText='min-width:0;overflow-wrap:anywhere;padding:14px 4px;border-radius:12px;text-align:center;font-weight:800;font-size:clamp(10px,1.5vw,15px);color:#251b33;background:'+colors[card.card_color];
+  if(card.card_color==='black')cell.style.color='#fff';
+  $('board').append(cell);
+ });
+}
+$('generateBoard').onclick=async()=>{
+ if(!selectedGame)return;
+ if($('board').children.length&&!confirm('Згенерувати нове поле? Попереднє буде замінено.'))return;
+ $('generateBoard').disabled=true;
+ try{
+  await request('/api/team-game-admin',{action:'generateBoard',gameId:selectedGame,blueTeam:Number($('blueTeam').value)});
+  await openGame(selectedGame);message('Нове поле 5×5 збережено');
+ }catch(e){message(e.message)}finally{$('generateBoard').disabled=false}
+};
+
 function drawPrompts(){
  $('prompts').replaceChildren();
  prompts.forEach((p,i)=>{
@@ -22,9 +43,14 @@ async function openGame(id){
   $('wordsLabel'+(i+1)).textContent='Слова: '+data.teams[i].name;
   $('words'+(i+1)).value=data.words.filter(w=>String(w.team_id)===String(data.teams[i].id)).map(w=>w.word).join('\n');
  }
+ $('blueTeam').replaceChildren();
+ data.teams.forEach((team,i)=>{const opt=document.createElement('option');opt.value=i+1;opt.textContent=team.name;$('blueTeam').append(opt)});
+ const role=data.roles.find(r=>r.color==='blue');
+ if(role)$('blueTeam').value=String(data.teams.findIndex(t=>String(t.id)===String(role.team_id))+1);
+ drawBoard(data.cards);
  prompts=data.prompts.map(p=>({description:p.description,answer:p.answer}));drawPrompts();
  const locked=data.game.status!=='setup';
- for(const id of ['words1','words2','description','answer','addPrompt','saveContent'])$(id).disabled=locked;
+ for(const id of ['words1','words2','description','answer','addPrompt','saveContent','blueTeam','generateBoard'])$(id).disabled=locked;
  message(locked?'Гра вже запущена: редагування закрито':'Можна редагувати завдання');
  $('editor').scrollIntoView({behavior:'smooth'});
 }
