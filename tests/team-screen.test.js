@@ -33,3 +33,8 @@ test('round results show only that round; totals and winner require the final re
  const result=teamResult({current_round:3,status:'finished',phase:'finished'},teams);
  assert.deepEqual(result.scores,[8,13]);assert.equal(result.winner,'Перемогли: B!');assert.equal(result.title,'Загальний рахунок');
 });
+
+test('round three uses a dedicated large-association screen without timer or scores',()=>{
+ const state=teamScreenState({status:'playing',current_round:3,phase:'round3_play'},false,false);
+ assert.equal(state.mode,'associations');assert.equal(state.word,true);assert.equal(state.timer,false);assert.equal(state.results,false);
+});

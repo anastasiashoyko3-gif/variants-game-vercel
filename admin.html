@@ -80,16 +80,19 @@
 <div id="revealPanel"></div>
 <section class="grid2"><div><h2>Гравці</h2><div id="playersList"></div></div><div><h2>Таблиця</h2><div id="scoreBoard"></div></div></section>
 </section>
-<section id="teamAdmin" class="hidden"><div class="actions hidden" id="editorToolbar"><button id="backToTeamGames" class="secondary">← До списку ігор</button><button id="startRound">Почати гру</button><button id="toggleEditor" class="secondary hidden">Редагувати завдання всіх раундів</button></div><section class="card hidden" id="editor"><div class="actions"><h2 id="editorTitle">Завдання гри</h2><button class="secondary" id="closeTeamEditor">Закрити редагування</button></div>
+<section id="teamAdmin" class="hidden"><div class="actions hidden" id="editorToolbar"><button id="backToTeamGames" class="secondary">← До списку ігор</button><label id="firstTeamField">Хто починає перший раунд<select id="firstTeam"></select></label><button id="startRound">Почати гру</button><button id="toggleEditor" class="secondary hidden">Редагувати завдання всіх раундів</button></div><section class="card hidden" id="editor"><div class="actions"><h2 id="editorTitle">Завдання гри</h2><button class="secondary" id="closeTeamEditor">Закрити редагування</button></div>
 <p class="muted">Раунд 1 · По одному слову на рядок для кожної команди.</p>
 <div class="grid2"><div><label id="wordsLabel1">Команда 1</label><textarea id="words1" rows="10" placeholder="сонце&#10;кіт&#10;кава"></textarea></div>
 <div><label id="wordsLabel2">Команда 2</label><textarea id="words2" rows="10" placeholder="літак&#10;дощ&#10;книга"></textarea></div></div>
-<h2>Раунд 2 · Кодові імена</h2><p class="muted">25 карток. Синя команда має 9 слів і ходить першою.</p>
+<h2>Раунд 2 · Кодові імена</h2><p class="muted">25 карток із тематичного банку: тварини, країни, міста, страви та інші асоціації. Синя команда має 9 слів і ходить першою.</p>
 <p class="muted">Поле з банку слів генерується після раунду 1. Тоді ведуча обирає синю команду (9 карток, перший хід) та червону (8 карток).</p>
 <h2>Раунд 3</h2>
-<label>Опис<textarea id="description" placeholder="Рука тримати холодний камінь..."></textarea></label>
+<p class="muted">Три асоціації: за відповідь на першій +5, на другій +3, на третій +1. Кожна помилка −2. Кількість спроб необмежена; наступну підказку відкриває тільки ведуча.</p>
+<label>Перша асоціація · +5<textarea id="hint1" maxlength="500" placeholder="Сліди пальців"></textarea></label>
+<label>Друга асоціація · +3<textarea id="hint2" maxlength="500" placeholder="Павутина на склі"></textarea></label>
+<label>Третя асоціація · +1<textarea id="hint3" maxlength="500" placeholder="Паніка на одному відсотку"></textarea></label>
 <label>Правильна відповідь<input id="answer" placeholder="Телефон"></label>
-<div class="actions"><button class="secondary" id="addPrompt">Додати опис</button></div>
+<div class="actions"><button class="secondary" id="addPrompt">Додати завдання</button></div>
 <div id="prompts"></div><div class="actions"><button id="saveContent">Зберегти всі завдання</button></div>
 </section><section id="livePanel" class="card hidden"><div class="actions"><button id="backFromLive" class="secondary">← До списку ігор</button></div><h2 id="currentRoundTitle">Раунд 1 · Керування</h2>
 <p id="liveStatus" class="muted"></p><div id="liveTimer" class="timer">01:30</div>
@@ -106,7 +109,7 @@
 <div id="round2Board" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px"></div>
 <div class="actions"><button id="round2Start">Згенерувати поле й почати раунд 2</button><button id="switchTeam">Передати хід іншій команді</button><button id="endRound2">Завершити раунд 2</button></div></div>
 <div id="round3Panel" class="hidden">
-<h2>Раунд 3</h2><p id="round3Description"></p><p id="round3Answer"></p>
+<h2>Раунд 3</h2><p id="hintValue" class="muted"></p><div id="round3Description"></div><p id="round3Answer"></p><div class="actions"><button id="revealHint" class="secondary hidden">Відкрити наступну підказку</button></div>
 <div class="actions"><button id="round3Start">Почати раунд 3</button></div>
 <div id="guessButtons" class="actions"></div>
 <div class="actions"><button id="nextPrompt">Наступне слово</button><button id="finishGame">Завершити третій раунд</button></div></div>
@@ -115,5 +118,5 @@
 <p class="muted">Слова бачить лише адмін. Для гравців і глядачів створюються окремі екрани.</p></section>
 <p id="message" class="muted" role="status"></p></section>
 </main>
-<script type="module" src="/js/admin.js?v=team-screen-8"></script>
+<script type="module" src="/js/admin.js?v=three-hints-2"></script>
 </body></html>

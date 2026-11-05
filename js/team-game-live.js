@@ -21,7 +21,8 @@ async function refresh(){
   const g=d.game,t=d.teams,state=teamScreenState(g,!!roleToken,!!d.activeWord);
   offset=d.serverTime-Date.now();deadline=g.round_deadline?new Date(g.round_deadline).getTime():0;freeze=g.round_paused_seconds??0;
   $('stage').dataset.mode=state.mode;
-  show('screenHeader',state.mode==='standard');
+  show('screenHeader',state.mode==='standard'||state.mode==='associations');
+  show('title',state.mode==='standard');
   show('roundContent',!state.results);
   show('results',state.results);
   $('title').textContent=g.title;

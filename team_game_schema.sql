@@ -11,6 +11,8 @@ create table if not exists team_games (
   phase text not null default 'setup',
   active_team_id bigint,
   current_item integer not null default 0,
+  round1_first_team integer not null default 1 check (round1_first_team in (1,2)),
+  round3_hint integer not null default 1 check (round3_hint between 1 and 3),
   round_deadline timestamptz,
   round_paused_seconds integer,
   created_at timestamptz not null default now(),
@@ -75,6 +77,7 @@ create table if not exists team_absurd_prompts (
   game_id bigint not null references team_games(id) on delete cascade,
   prompt_order integer not null,
   description text not null,
+  hints_json jsonb,
   answer text not null,
   solved_by_team_id bigint references team_game_teams(id) on delete set null,
   unique (game_id, prompt_order)

@@ -4,7 +4,7 @@ export function teamScreenState(game, isTeamScreen, hasActiveWord) {
   const round1 = game.status === 'playing' && game.current_round === 1 && !results;
   const takingTurn = ['round1_ready', 'round1_play'].includes(game.phase);
   return {
-    mode: results ? 'results' : round1 ? 'focus' : 'standard',
+    mode: results ? 'results' : round1 ? 'focus' : game.status === 'playing' && game.current_round === 3 ? 'associations' : 'standard',
     results,
     timer: round1 && takingTurn && !isTeamScreen,
     word: !results && game.status === 'playing' &&
