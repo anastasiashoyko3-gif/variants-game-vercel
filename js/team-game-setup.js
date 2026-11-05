@@ -1,4 +1,48 @@
 const $=id=>document.getElementById(id);
+let selectedGame=null, prompts=[];
+function drawPrompts(){
+ $('prompts').replaceChildren();
+ prompts.forEach((p,i)=>{
+  const row=document.createElement('div');row.className='gameItem';
+  const info=document.createElement('div');info.style.whiteSpace='pre-wrap';info.textContent=(i+1)+'. '+p.description+' — '+p.answer;
+  const edit=document.createElement('button');edit.className='secondary smallBtn';edit.textContent='Редагувати';
+  edit.onclick=()=>{const d=window.prompt('Опис',p.description);if(d===null)return;const a=window.prompt('Відповідь',p.answer);if(a===null)return;if(!d.trim()||!a.trim())return message('Опис і відповідь не можуть бути порожні');prompts[i]={description:d.trim(),answer:a.trim()};drawPrompts()};
+  const remove=document.createElement('button');remove.className='danger smallBtn';remove.textContent='Видалити';remove.onclick=()=>{prompts.splice(i,1);drawPrompts()};
+  const up=document.createElement('button');up.className='secondary smallBtn';up.textContent='↑';up.disabled=i===0;up.onclick=()=>{[prompts[i-1],prompts[i]]=[prompts[i],prompts[i-1]];drawPrompts()};
+  const down=document.createElement('button');down.className='secondary smallBtn';down.textContent='↓';down.disabled=i===prompts.length-1;down.onclick=()=>{[prompts[i+1],prompts[i]]=[prompts[i],prompts[i+1]];drawPrompts()};
+  const actions=document.createElement('div');actions.className='actions';actions.append(edit,up,down,remove);row.append(info,actions);$('prompts').append(row);
+ });
+}
+async function openGame(id){
+ const data=await request('/api/team-game-admin',{action:'details',gameId:id});
+ selectedGame=id;
+ $('editor').classList.remove('hidden');
+ $('editorTitle').textContent='Завдання: '+data.game.title;
+ for(let i=0;i<2;i++){
+  $('wordsLabel'+(i+1)).textContent='Слова: '+data.teams[i].name;
+  $('words'+(i+1)).value=data.words.filter(w=>String(w.team_id)===String(data.teams[i].id)).map(w=>w.word).join('\n');
+ }
+ prompts=data.prompts.map(p=>({description:p.description,answer:p.answer}));drawPrompts();
+ const locked=data.game.status!=='setup';
+ for(const id of ['words1','words2','description','answer','addPrompt','saveContent'])$(id).disabled=locked;
+ message(locked?'Гра вже запущена: редагування закрито':'Можна редагувати завдання');
+ $('editor').scrollIntoView({behavior:'smooth'});
+}
+$('addPrompt').onclick=()=>{
+ const description=$('description').value.trim(),answer=$('answer').value.trim();
+ if(!description||!answer)return message('Заповни опис та відповідь');
+ prompts.push({description,answer});$('description').value='';$('answer').value='';drawPrompts();
+};
+$('saveContent').onclick=async()=>{
+ if(!selectedGame)return;
+ $('saveContent').disabled=true;
+ try{
+  const wordLists=[1,2].map(i=>$('words'+i).value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean));
+  await request('/api/team-game-admin',{action:'saveContent',gameId:selectedGame,wordLists,prompts});
+  message('Завдання успішно збережені в Neon');
+ }catch(e){message(e.message)}finally{$('saveContent').disabled=false}
+};
+
 function message(text){$('message').textContent=text}
 async function request(url,body){
  const res=await fetch(url,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},credentials:'same-origin',...(body?{body:JSON.stringify(body)}:{})});
@@ -13,7 +57,7 @@ async function refresh(){
  for(const game of data.games){
   const el=document.createElement('div');el.className='gameItem';
   el.textContent=game.title+' · код: '+game.invite_code+' · '+game.status;
-  $('games').append(el);
+  const btn=document.createElement('button');btn.className='secondary smallBtn';btn.textContent='Налаштувати раунди';btn.onclick=()=>openGame(game.id).catch(e=>message(e.message));el.append(btn);$('games').append(el);
  }
  if(!data.games.length)$('games').textContent='Ігор поки немає';
 }
