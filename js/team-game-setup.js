@@ -1,11 +1,12 @@
 const $=id=>document.getElementById(id);
 let selectedGame=null, prompts=[], livePoll=null;
-let serverOffset=0, deadline=null, lastLive=null;
+let serverOffset=0, deadline=null, lastLive=null, frozenSeconds=null;
 function setVisible(id,show){$(id).classList.toggle('hidden',!show)}
 function renderLive(data){
  lastLive=data;const g=data.game,active=data.teams.find(t=>String(t.id)===String(g.active_team_id));
  serverOffset=data.serverTime-Date.now();
  deadline=g.round_deadline?new Date(g.round_deadline).getTime():null;
+ frozenSeconds=g.round_paused_seconds;
  $('liveStatus').textContent='Статус: '+g.phase+(active?' · '+active.name:'');
  $('liveWord').textContent=data.activeWord||'';
  $('liveScores').replaceChildren();
@@ -20,7 +21,7 @@ function renderLive(data){
  setVisible('closeTime',g.phase==='round1_play'&&deadline!==null&&deadline<=Date.now()+serverOffset);
  setVisible('nextTeam',g.phase==='round1_team_done'&&String(g.active_team_id)===String(data.teams[0].id));
  setVisible('finishRound',g.phase==='round1_team_done'&&String(g.active_team_id)===String(data.teams[1].id));
- $('liveTimer').textContent=deadline?formatTime(Math.max(0,Math.ceil((deadline-Date.now()-serverOffset)/1000))):'00:00';
+ $('liveTimer').textContent=deadline?formatTime(Math.max(0,Math.ceil((deadline-Date.now()-serverOffset)/1000))):formatTime(frozenSeconds??0);
 }
 function formatTime(seconds){return String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')}
 async function loadLive(){if(!selectedGame)return;const response=await fetch('/api/team-live?gameId='+encodeURIComponent(selectedGame),{credentials:'same-origin'});if(!response.ok)throw new Error('Не вдалося отримати стан раунду');renderLive(await response.json())}
