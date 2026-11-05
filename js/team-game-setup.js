@@ -20,6 +20,7 @@ function renderLive(data){
  $('liveWord').textContent=data.activeWord||'';
  $('liveScores').textContent=data.teams[0].name+'  '+(Number(data.teams[0].round1_score)+Number(data.teams[0].round2_score)+Number(data.teams[0].round3_score))+' : '+(Number(data.teams[1].round1_score)+Number(data.teams[1].round2_score)+Number(data.teams[1].round3_score))+'  '+data.teams[1].name;
  setVisible('startRound',g.status==='setup');
+ setVisible('startTimer',g.phase==='round1_ready');
  setVisible('correct',g.phase==='round1_play'&&!!data.activeWordId);
  setVisible('skip',g.phase==='round1_play'&&!!data.activeWordId);
  setVisible('closeTime',g.phase==='round1_play'&&deadline!==null&&deadline<=Date.now()+serverOffset);
@@ -37,7 +38,8 @@ async function actionRound(action,result){
   if(action==='start')await openGame(selectedGame);
  }catch(e){message(e.message)}
 }
-$('startRound').onclick=()=>{if(confirm('Запустити перший раунд? Завдання після цього не можна змінювати.'))actionRound('start')};
+$('startRound').onclick=()=>{if(confirm('Почати гру? Таймер запуститься окремою кнопкою.'))actionRound('start')};
+$('startTimer').onclick=()=>actionRound('startTimer');
 $('correct').onclick=()=>actionRound('score','correct');
 $('skip').onclick=()=>actionRound('score','skipped');
 $('closeTime').onclick=()=>actionRound('closeTime');
