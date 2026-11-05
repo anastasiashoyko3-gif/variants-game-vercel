@@ -3,6 +3,7 @@ let selectedGame=null, prompts=[], livePoll=null;
 let serverOffset=0, deadline=null, lastLive=null, frozenSeconds=null;
 function setVisible(id,show){$(id).classList.toggle('hidden',!show)}
 function renderLive(data){
+ renderLater(data);
  lastLive=data;const g=data.game,active=data.teams.find(t=>String(t.id)===String(g.active_team_id));
  serverOffset=data.serverTime-Date.now();
  deadline=g.round_deadline?new Date(g.round_deadline).getTime():null;
@@ -164,3 +165,53 @@ $('create').onclick=async()=>{
 };
 $('refresh').onclick=()=>refresh().catch(e=>message(e.message));
 refresh().catch(()=>{});
+
+function renderLater(data){
+ const g=data.game,teams=data.teams;
+ const total=t=>Number(t.round1_score)+Number(t.round2_score)+Number(t.round3_score);
+ $('liveScores').textContent=teams.map(t=>t.name).join(' : ')+'   '+total(teams[0])+' : '+total(teams[1]);
+ $('shareLinks').replaceChildren();
+ const viewer=document.createElement('a');viewer.href='/team-game-live.html?gameId='+selectedGame+'&code='+encodeURIComponent(data.gameCode||'');viewer.textContent='Екран глядачів';viewer.target='_blank';
+ $('shareLinks').append(viewer);
+ if(data.roleLinks)for(const role of data.roleLinks){
+  const team=teams.find(t=>String(t.id)===String(role.teamId));
+  const a=document.createElement('a');a.href='/team-game-live.html?gameId='+selectedGame+'&code='+encodeURIComponent(data.gameCode||'')+'&roleToken='+role.token;a.target='_blank';a.textContent='Екран команди '+team.name;a.style.display='block';$('shareLinks').append(a);
+ }
+ setVisible('round2Panel',['round1_done','round2_play','round2_done'].includes(g.phase));
+ setVisible('round2Start',g.phase==='round1_done');
+ setVisible('switchTeam',g.phase==='round2_play');
+ setVisible('endRound2',g.phase==='round2_play');
+ $('round2Status').textContent='Хід: '+(teams.find(t=>String(t.id)===String(g.active_team_id))?.name||'—');
+ $('round2Board').replaceChildren();
+ for(const card of data.cards||[]){
+  const btn=document.createElement('button');btn.className='secondary';
+  btn.textContent=card.word;btn.style.cssText='padding:10px 2px;min-width:0;overflow-wrap:anywhere;font-size:12px;background:'+({blue:'#9cc7ff',red:'#ffacbd',neutral:'#e5e1d9',black:'#43404b'}[card.card_color]||'#fff')+';color:'+(card.card_color==='black'?'white':'#251b33');
+  btn.disabled=g.phase!=='round2_play'||card.revealed;
+  if(card.revealed)btn.style.opacity='.5';
+  btn.onclick=()=>{if(confirm('Відкрити картку «'+card.word+'»?'))playAction('reveal',{position:card.position})};
+  $('round2Board').append(btn);
+ }
+ setVisible('round3Panel',['round2_done','round3_play','round3_wait_next','finished'].includes(g.phase));
+ setVisible('round3Start',g.phase==='round2_done');
+ $('round3Description').textContent=data.prompt?.description||'';
+ $('round3Answer').textContent=data.prompt?'Відповідь для адміна: '+data.prompt.answer:'';
+ $('guessButtons').replaceChildren();
+ if(g.phase==='round3_play')for(const t of teams){
+  for(const correct of [false,true]){
+   const b=document.createElement('button');b.className=correct?'':'secondary';
+   b.textContent=t.name+' · '+(correct?'+3':'−3');
+   b.onclick=()=>playAction('guess',{teamId:t.id,correct});
+   $('guessButtons').append(b);
+  }
+ }
+ setVisible('nextPrompt',g.phase==='round3_wait_next'&&!data.isLastPrompt);
+ setVisible('finishGame',g.phase==='round3_wait_next'&&data.isLastPrompt);
+ const a=total(teams[0]),b=total(teams[1]);
+ $('winner').textContent=g.status==='finished'?(a===b?'Нічия!':('Перемогла '+(a>b?teams[0].name:teams[1].name)+'!')):'';
+}
+async function playAction(action,extra={}){
+ try{await request('/api/team-play',{action,gameId:selectedGame,...extra});await loadLive();message('Збережено')}
+ catch(e){message(e.message)}
+}
+for(const action of ['round2Start','switchTeam','endRound2','round3Start','nextPrompt','finishGame'])
+ $(action).onclick=()=>playAction(action);
