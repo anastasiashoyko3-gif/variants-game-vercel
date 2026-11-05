@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id),params=new URLSearchParams(location.search),gameId=params.get('gameId'),code=params.get('code'),roleToken=params.get('roleToken');let deadline=0,offset=0,freeze=0;
-function show(id,on){$(id).style.display=on?'':'none'}
+function show(id,on){$(id).style.display=on?(id==='board'?'grid':''):'none'}
 async function refresh(){
  if(!gameId||!code){$('error').textContent='Відкрий посилання, яке надав ведучий';return}
  try{
