@@ -4,6 +4,9 @@ let serverOffset=0, deadline=null, lastLive=null, frozenSeconds=null;
 function setVisible(id,show){$(id).classList.toggle('hidden',!show)}
 function renderLive(data){
  renderLater(data);
+ $('currentRoundTitle').textContent=data.game.status==='finished'?'Фінал · Підсумки':data.game.current_round===1?'Раунд 1 · Асоціації':data.game.current_round===2?'Раунд 2 · Кодові імена':'Раунд 3 · Смішні описи';
+ setVisible('liveTimer',data.game.current_round===1&&data.game.status==='playing');
+ setVisible('liveWord',data.game.current_round===1&&data.game.status==='playing');
  lastLive=data;const g=data.game,active=data.teams.find(t=>String(t.id)===String(g.active_team_id));
  serverOffset=data.serverTime-Date.now();
  deadline=g.round_deadline?new Date(g.round_deadline).getTime():null;
@@ -82,7 +85,8 @@ async function openGame(id){
  window.teamSelectedGameId=id;
  $('livePanel').classList.remove('hidden');
  loadLive().catch(e=>message(e.message));
- $('editor').classList.remove('hidden');
+ $('editor').classList.add('hidden');
+ setVisible('toggleEditor',true);
  $('editorTitle').textContent='Завдання: '+data.game.title;
  for(let i=0;i<2;i++){
   $('wordsLabel'+(i+1)).textContent='Слова: '+data.teams[i].name;
@@ -97,7 +101,7 @@ async function openGame(id){
  const locked=data.game.status!=='setup';
  for(const id of ['words1','words2','description','answer','addPrompt','saveContent','blueTeam','generateBoard'])$(id).disabled=locked;
  message(locked?'Гра вже запущена: редагування закрито':'Можна редагувати завдання');
- $('editor').scrollIntoView({behavior:'smooth'});
+ $('livePanel').scrollIntoView({behavior:'smooth'});
 }
 $('addPrompt').onclick=()=>{
  const description=$('description').value.trim(),answer=$('answer').value.trim();
@@ -173,7 +177,7 @@ function renderLater(data){
   const team=teams.find(t=>String(t.id)===String(role.teamId));
   const a=document.createElement('a');a.href='/team-game-live.html?gameId='+selectedGame+'&code='+encodeURIComponent(data.gameCode||'')+'&roleToken='+role.token;a.target='_blank';a.textContent='Екран команди '+team.name;a.style.display='block';$('shareLinks').append(a);
  }
- setVisible('round2Panel',['round1_done','round2_play','round2_done'].includes(g.phase));
+ setVisible('round2Panel',g.phase==='round1_done'||g.current_round===2);
  setVisible('round2Start',g.phase==='round1_done');
  setVisible('switchTeam',g.phase==='round2_play');
  setVisible('endRound2',g.phase==='round2_play');
@@ -187,7 +191,7 @@ function renderLater(data){
   btn.onclick=()=>{if(confirm('Відкрити картку «'+card.word+'»?'))playAction('reveal',{position:card.position})};
   $('round2Board').append(btn);
  }
- setVisible('round3Panel',['round2_done','round3_play','round3_wait_next','finished'].includes(g.phase));
+ setVisible('round3Panel',g.phase==='round2_done'||g.current_round===3);
  setVisible('round3Start',g.phase==='round2_done');
  $('round3Description').textContent=data.prompt?.description||'';
  $('round3Answer').textContent=data.prompt?'Відповідь для адміна: '+data.prompt.answer:'';
@@ -211,3 +215,14 @@ async function playAction(action,extra={}){
 }
 for(const action of ['round2Start','switchTeam','endRound2','round3Start','nextPrompt','finishGame'])
  $(action).onclick=()=>playAction(action);
+
+$('toggleEditor').onclick=()=>{$('editor').classList.remove('hidden');$('editor').scrollIntoView({behavior:'smooth'})};
+$('closeTeamEditor').onclick=()=>{$('editor').classList.add('hidden');$('livePanel').scrollIntoView({behavior:'smooth'})};
+$('restartTeamGame').onclick=async()=>{
+ if(!selectedGame||!confirm('Почати гру заново? Усі бали та проходження раундів обнуляться. Слова, описи й поле залишаться.'))return;
+ try{
+  await request('/api/team-game-admin',{action:'restart',gameId:selectedGame});
+  $('editor').classList.add('hidden');
+  await openGame(selectedGame);await refresh();message('Гру скинуто. Можна починати заново.');
+ }catch(e){message(e.message)}
+};
