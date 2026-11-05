@@ -5,7 +5,7 @@ export default async function handler(req,res){
  if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
  const id=Number(req.query.gameId);
  if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({error:'Невірний номер гри'});
- const admin=isTeamAdmin(req),sql=getDb();
+ const admin=isTeamAdmin(req) && !req.query.code,sql=getDb();
  try{
   const games=await sql.query('SELECT id,title,status,current_round,phase,active_team_id,round_deadline,round_paused_seconds,invite_code FROM team_games WHERE id=$1',[id]);
   if(!games.length)return res.status(404).json({error:'Гру не знайдено'});
