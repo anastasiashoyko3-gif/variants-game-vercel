@@ -131,7 +131,18 @@ async function refresh(){
  for(const game of data.games){
   const el=document.createElement('div');el.className='gameItem';
   el.textContent=game.title+' · код: '+game.invite_code+' · '+game.status;
-  const btn=document.createElement('button');btn.className='secondary smallBtn';btn.textContent='Налаштувати раунди';btn.onclick=()=>openGame(game.id).catch(e=>message(e.message));el.append(btn);$('games').append(el);
+  const btn=document.createElement('button');btn.className='secondary smallBtn';btn.textContent='Налаштувати раунди';btn.onclick=()=>openGame(game.id).catch(e=>message(e.message));el.append(btn);
+  const del=document.createElement('button');del.className='secondary smallBtn';del.textContent='Видалити';
+  del.onclick=async()=>{
+    if(!confirm('Назавжди видалити гру «'+game.title+'» та всі її завдання й бали? Це неможливо скасувати.'))return;
+    del.disabled=true;
+    try{
+      await request('/api/team-game-admin',{action:'delete',gameId:game.id});
+      if(String(selectedGame)===String(game.id)){selectedGame=null;$('editor').classList.add('hidden');$('livePanel').classList.add('hidden');lastLive=null}
+      await refresh();message('Гру видалено');
+    }catch(e){message(e.message);del.disabled=false}
+  };
+  el.append(del);$('games').append(el);
  }
  if(!data.games.length)$('games').textContent='Ігор поки немає';
 }
