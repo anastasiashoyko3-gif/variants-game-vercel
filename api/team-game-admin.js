@@ -21,6 +21,12 @@ export default async function handler(req, res) {
       return res.status(200).json({games});
     }
     const body=parseBody(req);
+    if (body.action === 'delete' && validId(body.gameId)) {
+      const id=Number(body.gameId);
+      const deleted=await sql.query('DELETE FROM team_games WHERE id=$1 RETURNING id',[id]);
+      if(!deleted.length)return res.status(404).json({error:'Гру вже видалено або не знайдено'});
+      return res.status(200).json({ok:true});
+    }
     if (body.action === 'create') {
       const teams=body.teams;
       if (!Array.isArray(teams) || teams.length !== 2 || !teams.every(validateTeam)) {
