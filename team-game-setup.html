@@ -9,6 +9,16 @@
 <div><label>Друга команда<input id="team2" value="Команда 2"></label><label>Колір<input id="color2" type="color" value="#bd5369"></label></div></div>
 <div class="actions"><button id="create">Створити гру</button><button class="secondary" id="refresh">Оновити список</button></div>
 <h2>Збережені командні ігри</h2><div id="games"></div></section>
+<section class="card hidden" id="editor"><h2 id="editorTitle">Завдання гри</h2>
+<p class="muted">Раунд 1 · По одному слову на рядок для кожної команди.</p>
+<div class="grid2"><div><label id="wordsLabel1">Команда 1</label><textarea id="words1" rows="10" placeholder="сонце&#10;кіт&#10;кава"></textarea></div>
+<div><label id="wordsLabel2">Команда 2</label><textarea id="words2" rows="10" placeholder="літак&#10;дощ&#10;книга"></textarea></div></div>
+<h2>Раунд 3 · Смішні описи</h2>
+<label>Опис<textarea id="description" placeholder="Рука тримати холодний камінь..."></textarea></label>
+<label>Правильна відповідь<input id="answer" placeholder="Телефон"></label>
+<div class="actions"><button class="secondary" id="addPrompt">Додати опис</button></div>
+<div id="prompts"></div><div class="actions"><button id="saveContent">Зберегти всі завдання</button></div>
+<p class="muted">Раунд 2 · Генератор поля 5×5 додамо наступним етапом.</p></section>
 <p id="message" class="muted" role="status"></p>
 <p class="muted">Це перший робочий етап. Раунди й екрани гравців додамо окремо.</p>
 </main><script type="module" src="/js/team-game-setup.js"></script></body></html>
