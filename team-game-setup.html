@@ -46,4 +46,4 @@
 <p class="muted">Слова бачить лише адмін. Для гравців і глядачів створюються окремі екрани.</p></section>
 <p id="message" class="muted" role="status"></p>
 <p class="muted">Це перший робочий етап. Раунди й екрани гравців додамо окремо.</p>
-</main><script type="module" src="/js/team-game-setup.js"></script></body></html>
+</main><script type="module" src="/js/team-game-setup.js"></script><script>document.getElementById('restartTeamGame').addEventListener('click',async function(){const q=new URLSearchParams(location.search);const gameId=window.teamSelectedGameId||q.get('gameId');if(!gameId){alert('Спочатку відкрий гру');return}if(!confirm('Почати гру заново? Усі бали обнуляться, але слова та завдання залишаться.'))return;const r=await fetch('/api/team-restart',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({gameId})});const d=await r.json();if(!r.ok){alert(d.error||'Помилка');return}location.reload()});</script></body></html>
