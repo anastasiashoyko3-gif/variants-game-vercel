@@ -9,7 +9,7 @@ let serverOffset=0, deadline=null, lastLive=null, frozenSeconds=null;
 function setVisible(id,show){$(id).classList.toggle('hidden',!show)}
 function renderLive(data){
  renderLater(data);
- $('currentRoundTitle').textContent=data.game.status==='finished'?'Фінал · Підсумки':data.game.current_round===1?'Раунд 1 · Асоціації':data.game.current_round===2?'Раунд 2 · Кодові імена':'Раунд 3 · Смішні описи';
+ $('currentRoundTitle').textContent=data.game.status==='finished'?'Фінал · Підсумки':data.game.current_round===1?'Раунд 1 · Асоціації':data.game.current_round===2?'Раунд 2 · Кодові імена':'Раунд 3';
  setVisible('liveTimer',data.game.current_round===1&&data.game.status==='playing'&&data.game.phase!=='round1_done');
  setVisible('liveWord',data.game.current_round===1&&data.game.status==='playing'&&data.game.phase!=='round1_done');
  const playing=data.game.status!=='setup';
