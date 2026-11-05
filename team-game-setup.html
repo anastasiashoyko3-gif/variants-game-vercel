@@ -23,7 +23,16 @@
 <label>Правильна відповідь<input id="answer" placeholder="Телефон"></label>
 <div class="actions"><button class="secondary" id="addPrompt">Додати опис</button></div>
 <div id="prompts"></div><div class="actions"><button id="saveContent">Зберегти всі завдання</button></div>
-<p class="muted">Раунд 2 · Генератор поля 5×5 додамо наступним етапом.</p></section>
+</section><section id="livePanel" class="card hidden"><h2>Раунд 1 · Керування</h2>
+<p id="liveStatus" class="muted"></p><div id="liveTimer" class="timer">01:30</div>
+<p id="liveWord" class="question"></p>
+<div class="actions"><button id="startRound">Почати гру · 90 секунд</button>
+<button id="correct" class="hidden">Зарахувати +1</button><button id="skip" class="secondary hidden">Не зарахувати</button>
+<button id="closeTime" class="secondary hidden">Завершити час</button>
+<button id="nextTeam" class="hidden">Запустити другу команду</button>
+<button id="finishRound" class="hidden">Завершити перший раунд</button></div>
+<div id="liveScores" class="grid2"></div>
+<p class="muted">Слова бачить лише адмін. Для гравців і глядачів створюються окремі екрани.</p></section>
 <p id="message" class="muted" role="status"></p>
 <p class="muted">Це перший робочий етап. Раунди й екрани гравців додамо окремо.</p>
 </main><script type="module" src="/js/team-game-setup.js"></script></body></html>
