@@ -7,6 +7,11 @@ function renderLive(data){
  $('currentRoundTitle').textContent=data.game.status==='finished'?'Фінал · Підсумки':data.game.current_round===1?'Раунд 1 · Асоціації':data.game.current_round===2?'Раунд 2 · Кодові імена':'Раунд 3 · Смішні описи';
  setVisible('liveTimer',data.game.current_round===1&&data.game.status==='playing');
  setVisible('liveWord',data.game.current_round===1&&data.game.status==='playing');
+ const playing=data.game.status!=='setup';
+ setVisible('setup',!playing);
+ setVisible('editorToolbar',!playing);
+ if(playing)$('editor').classList.add('hidden');
+ setVisible('restartTeamGame',playing);
  lastLive=data;const g=data.game,active=data.teams.find(t=>String(t.id)===String(g.active_team_id));
  serverOffset=data.serverTime-Date.now();
  deadline=g.round_deadline?new Date(g.round_deadline).getTime():null;
@@ -84,9 +89,10 @@ async function openGame(id){
  selectedGame=id;
  window.teamSelectedGameId=id;
  $('livePanel').classList.remove('hidden');
+ $('setup').classList.add('hidden');
  loadLive().catch(e=>message(e.message));
  $('editor').classList.add('hidden');
- setVisible('toggleEditor',true);
+ setVisible('toggleEditor',data.game.status==='setup');
  $('editorTitle').textContent='Завдання: '+data.game.title;
  for(let i=0;i<2;i++){
   $('wordsLabel'+(i+1)).textContent='Слова: '+data.teams[i].name;
@@ -229,3 +235,15 @@ $('restartTeamGame').onclick=async()=>{
   await openGame(selectedGame);await refresh();message('Гру скинуто. Можна починати заново.');
  }catch(e){message(e.message)}
 };
+
+function backToTeamGames(){
+ selectedGame=null;lastLive=null;deadline=null;
+ $('editor').classList.add('hidden');
+ $('editorToolbar').classList.add('hidden');
+ $('livePanel').classList.add('hidden');
+ $('setup').classList.remove('hidden');
+ refresh().catch(e=>message(e.message));
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+$('backToTeamGames').onclick=backToTeamGames;
+$('backFromLive').onclick=backToTeamGames;
