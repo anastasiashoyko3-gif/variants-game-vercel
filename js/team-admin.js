@@ -162,7 +162,7 @@ function renderLater(data){
  setVisible('finishGame',g.phase==='round3_wait_next'&&data.isLastPrompt);
  setVisible('showFinalScore',g.status==='finished'&&g.phase==='round3_done');
  const a=total(teams[0]),b=total(teams[1]);
- $('winner').textContent=g.status==='finished'?(a===b?'Нічия!':('Перемогла '+(a>b?teams[0].name:teams[1].name)+'!')):'';
+ $('winner').textContent=g.status==='finished'?(a===b?'Нічия!':('Перемогли: '+(a>b?teams[0].name:teams[1].name)+'!')):'';
 }
 async function playAction(action,extra={}){
  try{await request('/api/team-play',{action,gameId:selectedGame,...extra});await loadLive();message('Збережено')}

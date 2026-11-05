@@ -24,6 +24,6 @@ export function teamResult(game, teams) {
     final,
     title: final ? 'Загальний рахунок' : 'Підсумок раунду ' + game.current_round,
     scores,
-    winner: final ? (scores[0] === scores[1] ? 'Нічия!' : 'Перемогла ' + teams[scores[0] > scores[1] ? 0 : 1].name + '!') : ''
+    winner: final ? (scores[0] === scores[1] ? 'Нічия!' : 'Перемогли: ' + teams[scores[0] > scores[1] ? 0 : 1].name + '!') : ''
   };
 }

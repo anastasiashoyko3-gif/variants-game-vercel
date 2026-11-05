@@ -29,6 +29,6 @@ function points(team,value){scores[team][Number($('scoreRound').value)]+=value;r
 function resetRound2(){let team=Number(prompt('Яку команду обнулити за другий раунд? Введи 1 або 2','1'));if(team!==1&&team!==2)return;scores[team-1][1]=0;renderScores();$('status').textContent='Бали другого раунду команди '+team+' обнулено.'}
 function addPrompt(){const d=$('description').value.trim(),a=$('answer').value.trim();if(!d||!a){alert('Заповни опис і правильну відповідь');return}prompts.push({d,a});$('description').value='';$('answer').value='';renderPrompts()}
 function renderPrompts(){$('promptList').replaceChildren();prompts.forEach((p,i)=>{const row=document.createElement('div');row.className='item';const span=document.createElement('span');span.textContent=(i+1)+'. '+p.d+' — відповідь: '+p.a;const btn=document.createElement('button');btn.className='danger';btn.textContent='Видалити';btn.onclick=()=>{prompts.splice(i,1);renderPrompts()};row.append(span,btn);$('promptList').append(row)})}
-function finish(){if(!confirm('Показати фінальний результат демо?'))return;const a=scores.map(s=>s.reduce((x,y)=>x+y,0));$('status').textContent=a[0]===a[1]?'Нічия!':('Перемогла '+$('name'+(a[0]>a[1]?1:2)).value+'!')}
+function finish(){if(!confirm('Показати фінальний результат демо?'))return;const a=scores.map(s=>s.reduce((x,y)=>x+y,0));$('status').textContent=a[0]===a[1]?'Нічия!':('Перемогли: '+$('name'+(a[0]>a[1]?1:2)).value+'!')}
 tab('setup');renderScores();
 </script></body></html>

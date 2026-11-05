@@ -10,7 +10,7 @@ function setRound(n){round=n;for(let i=1;i<=3;i++)document.getElementById('r'+i)
 if(n===1)el.innerHTML='<h2>Раунд 1 · Асоціації</h2><p>Зараз грає: <b>Команда 1</b></p><h1 style="font-size:72px">01:30</h1><p class="muted">Секретне слово глядачам не показуємо.</p>';
 if(n===2)el.innerHTML='<h2>Раунд 2 · Кодові імена</h2><p class="muted">На екрані глядачів слова спочатку без кольорів. Натисни на будь-яке слово для прикладу відкриття картки.</p><div class="grid">'+words.map((w,i)=>'<button class="tile" data-color="'+(i===7?'black':i%3===0?'blue':i%3===1?'red':'neutral')+'" onclick="this.classList.toggle(this.dataset.color)">'+w+'</button>').join('')+'</div>';
 if(n===3)el.innerHTML='<div class="desc">Рука тримати холодний камінь, камінь пити увага палець. Іноді камінь робити труси-труси, ніби всередині битися перелякане серце маленька миша.</div>';
-if(n===4)el.innerHTML='<h2 style="text-align:center">Фінальні результати</h2><h1>🏆 Перемогла Команда 2!</h1><p style="text-align:center" class="muted">Рахунок за всі три раунди — у двох блоках нижче.</p>';
+if(n===4)el.innerHTML='<h2 style="text-align:center">Фінальні результати</h2><h1>🏆 Перемогли: Команда 2!</h1><p style="text-align:center" class="muted">Рахунок за всі три раунди — у двох блоках нижче.</p>';
 }
 setRound(1);
 </script></body></html>

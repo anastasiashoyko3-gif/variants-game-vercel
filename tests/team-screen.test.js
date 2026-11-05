@@ -31,5 +31,5 @@ test('round results show only that round; totals and winner require the final re
   assert.deepEqual(result.scores,scores);assert.equal(result.winner,'');assert.equal(result.final,false);assert.equal(result.title,'Підсумок раунду '+round);
  }
  const result=teamResult({current_round:3,status:'finished',phase:'finished'},teams);
- assert.deepEqual(result.scores,[8,13]);assert.equal(result.winner,'Перемогла B!');assert.equal(result.title,'Загальний рахунок');
+ assert.deepEqual(result.scores,[8,13]);assert.equal(result.winner,'Перемогли: B!');assert.equal(result.title,'Загальний рахунок');
 });
