@@ -8,7 +8,7 @@ export default async function handler(req,res){
  if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({error:'Невірна гра'});
  const sql=getDb();
  try{
-  const games=await sql.query('SELECT id,status,current_round,phase,active_team_id,current_item,round_deadline FROM team_games WHERE id=$1',[id]);
+  const games=await sql.query('SELECT id,status,current_round,phase,active_team_id,current_item,round_deadline,round_paused_seconds FROM team_games WHERE id=$1',[id]);
   if(!games.length)return res.status(404).json({error:'Гру не знайдено'});
   const g=games[0];
   const teams=await sql.query('SELECT id,display_order FROM team_game_teams WHERE game_id=$1 ORDER BY display_order',[id]);
@@ -17,7 +17,7 @@ export default async function handler(req,res){
    if(g.status!=='setup')return res.status(409).json({error:'Гра вже почалася'});
    const count=await sql.query('SELECT team_id,count(*)::int AS n FROM team_association_words WHERE game_id=$1 GROUP BY team_id',[id]);
    if(teams.some(t=>!count.some(c=>String(c.team_id)===String(t.id)&&c.n>0)))return res.status(409).json({error:'Додай слова обом командам'});
-   const updated=await sql.query("UPDATE team_games SET status='playing',current_round=1,phase='round1_play',active_team_id=$2,current_item=0,round_deadline=now()+interval '90 seconds' WHERE id=$1 AND status='setup' RETURNING id",[id,teams[0].id]);
+   const updated=await sql.query("UPDATE team_games SET status='playing',current_round=1,phase='round1_play',active_team_id=$2,current_item=0,round_paused_seconds=NULL,round_deadline=now()+interval '90 seconds' WHERE id=$1 AND status='setup' RETURNING id",[id,teams[0].id]);
    if(!updated.length)return res.status(409).json({error:'Гру вже запущено'});
    return res.status(200).json({ok:true});
   }
@@ -35,14 +35,14 @@ export default async function handler(req,res){
    }
    const pending=await sql.query("SELECT count(*)::int AS n FROM team_association_words WHERE game_id=$1 AND team_id=$2 AND result='pending'",[id,g.active_team_id]);
    const expired=new Date(g.round_deadline).getTime()<=Date.now();
-   if(expired||pending[0].n===0)await sql.query("UPDATE team_games SET phase='round1_team_done' WHERE id=$1 AND phase='round1_play' AND active_team_id=$2",[id,g.active_team_id]);
+   if(expired||pending[0].n===0)await sql.query("UPDATE team_games SET phase='round1_team_done',round_paused_seconds=GREATEST(0,CEIL(EXTRACT(EPOCH FROM (round_deadline-now())))::integer),round_deadline=NULL WHERE id=$1 AND phase='round1_play' AND active_team_id=$2",[id,g.active_team_id]);
    else await sql.query("UPDATE team_games SET current_item=current_item+1 WHERE id=$1 AND phase='round1_play' AND active_team_id=$2",[id,g.active_team_id]);
    return res.status(200).json({ok:true});
   }
   if(action==='closeTime'){
    if(g.status!=='playing'||g.current_round!==1||g.phase!=='round1_play')return res.status(409).json({error:'Немає активного таймера'});
    if(new Date(g.round_deadline).getTime()>Date.now())return res.status(409).json({error:'Час ще не закінчився'});
-   await sql.query("UPDATE team_games SET phase='round1_team_done' WHERE id=$1 AND phase='round1_play'",[id]);
+   await sql.query("UPDATE team_games SET phase='round1_team_done',round_paused_seconds=0,round_deadline=NULL WHERE id=$1 AND phase='round1_play'",[id]);
    return res.status(200).json({ok:true});
   }
   if(action==='nextTeam'){
