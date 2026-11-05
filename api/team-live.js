@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import {getDb} from './_db.js';
 import {isTeamAdmin} from './_team-auth.js';
 export default async function handler(req,res){
@@ -15,7 +16,27 @@ export default async function handler(req,res){
   const active=words.find(w=>String(w.team_id)===String(g.active_team_id)&&w.result==='pending');
   const game={title:g.title,status:g.status,current_round:g.current_round,phase:g.phase,active_team_id:g.active_team_id,round_deadline:g.round_deadline,round_paused_seconds:g.round_paused_seconds};
   const response={game,teams,serverTime:Date.now(),activeWordId:active?.id||null};
-  if(admin)response.activeWord=active?.word||null;
+  const secret=process.env.ADMIN_SESSION_SECRET||process.env.ADMIN_PASSWORD;
+  const roleTeam=teams.find(t=>{
+    if(!secret)return false;
+    const token=crypto.createHmac('sha256',secret).update('team-role:'+id+':'+t.id).digest('hex');
+    const supplied=String(req.query.roleToken||'');
+    return supplied.length===token.length&&crypto.timingSafeEqual(Buffer.from(supplied),Buffer.from(token));
+  });
+  const cards=await sql.query('SELECT c.position,b.word,c.card_color,c.revealed FROM team_codenames_cards c JOIN team_codenames_bank b ON b.id=c.word_id WHERE c.game_id=$1 ORDER BY c.position',[id]);
+  response.cards=cards.map(card=>({position:card.position,word:card.word,revealed:card.revealed,...((admin||roleTeam||card.revealed)?{card_color:card.card_color}:{})}));
+  const roles=await sql.query('SELECT team_id,color FROM team_codenames_roles WHERE game_id=$1',[id]);
+  response.roles=roles;
+  const prompts=await sql.query('SELECT prompt_order,description,answer FROM team_absurd_prompts WHERE game_id=$1 ORDER BY prompt_order',[id]);
+  const prompt=prompts.find(p=>p.prompt_order===g.current_item);
+  response.prompt=prompt?{description:prompt.description,...(admin?{answer:prompt.answer}:{})}:null;
+  response.isLastPrompt=!!prompt&&g.current_item===prompts.length-1;
+  if(roleTeam&&String(roleTeam.id)!==String(g.active_team_id))response.roleTeamId=roleTeam.id;
+  if(roleTeam&&String(roleTeam.id)===String(g.active_team_id))response.activeWord=active?.word||null;
+  if(admin){
+    response.activeWord=active?.word||null;
+    if(secret)response.roleLinks=teams.map(t=>({teamId:t.id,token:crypto.createHmac('sha256',secret).update('team-role:'+id+':'+t.id).digest('hex')}));
+  }
   // The viewer never receives secret association words.
   return res.status(200).json(response);
  }catch(e){return res.status(500).json({error:'Не вдалося завантажити гру'})}
