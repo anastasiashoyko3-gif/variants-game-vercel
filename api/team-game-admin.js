@@ -84,6 +84,8 @@ export default async function handler(req, res) {
       if(teams.length!==2)return res.status(409).json({error:'Потрібно дві команди'});
       const blue=Number(body.blueTeam);
       if(blue!==1&&blue!==2)return res.status(400).json({error:'Обери синю команду'});
+      const old=await sql.query('SELECT word_id FROM team_codenames_cards WHERE game_id=$1',[id]);
+      if(old.length)await sql.query('UPDATE team_codenames_bank SET used_at=NULL WHERE id=ANY($1::bigint[])',[old.map(x=>x.word_id)]);
       const available=await sql.query('SELECT id FROM team_codenames_bank WHERE used_at IS NULL ORDER BY random() LIMIT 25');
       if(available.length<25)return res.status(409).json({error:'У банку замало невикористаних слів. Додай нові слова.'});
       const colors=[...Array(9).fill('blue'),...Array(8).fill('red'),...Array(7).fill('neutral'),'black'];
