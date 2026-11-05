@@ -11,13 +11,10 @@
 .teamScreen #focusNotice{font-size:clamp(20px,3vw,32px)}
 .teamScreen .resultsScreen{width:min(100%,1100px);margin:auto}
 .teamScreen #resultsTitle{margin:0 0 clamp(24px,5vh,56px)}
-.teamScreen #scoreTable{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
-.teamScreen #scoreTable th,.teamScreen #scoreTable td{padding:clamp(12px,2vw,28px) 6px;border-bottom:1px solid rgba(255,216,241,.2);overflow-wrap:anywhere}
-.teamScreen #scoreTable thead th{font-size:clamp(12px,1.8vw,22px);font-weight:600;color:var(--muted)}
-.teamScreen #scoreTable tbody th{width:32%;text-align:left;font-size:clamp(18px,3vw,36px)}
-.teamScreen #scoreTable thead th:first-child{width:32%;text-align:left}
-.teamScreen #scoreTable td{font-size:clamp(20px,3vw,40px)}
-.teamScreen #scoreTable td:last-child{font-size:clamp(28px,4.5vw,60px);font-weight:900;color:#ffd8f1}
+.teamScreen .scoreNames{display:grid;grid-template-columns:1fr 1fr;gap:32px}
+.teamScreen .scoreNames h2{font-size:clamp(20px,3.5vw,42px);overflow-wrap:anywhere;margin:0;font-weight:700}
+.teamScreen .scoreLine{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;margin-top:24px;font-size:clamp(64px,12vw,144px);font-weight:900;font-variant-numeric:tabular-nums;line-height:1.2;color:#ffd8f1}
+.teamScreen .scoreLine span:nth-child(2){font-size:.65em;color:var(--muted)}
 .teamScreen #winner{font-size:clamp(24px,3.5vw,44px);font-weight:800;margin:32px 0 0}
 .teamScreen #error:empty,.teamScreen #winner:empty{display:none}
 @media(max-width:600px){.teamScreen .teamStage{width:100%;padding:24px 14px}.teamScreen #round{font-size:22px}}

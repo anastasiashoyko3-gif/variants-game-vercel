@@ -1,22 +1,17 @@
-import { teamScreenState } from './team-screen-state.js';
+import { teamScreenState, teamResult } from './team-screen-state.js';
 const $=id=>document.getElementById(id),params=new URLSearchParams(location.search),gameId=params.get('gameId'),code=params.get('code'),roleToken=params.get('roleToken');
 let deadline=0,offset=0,freeze=0;
 function show(id,on){$(id).classList.toggle('hidden',!on)}
-function total(team){return Number(team.round1_score)+Number(team.round2_score)+Number(team.round3_score)}
-function renderScores(teams,completedRounds){
- const head=document.createElement('tr');
- for(const label of ['Команда',...Array.from({length:completedRounds},(_,i)=>'Раунд '+(i+1)),'Разом']){
-  const th=document.createElement('th');th.scope='col';th.textContent=label;head.append(th);
+function renderScores(game,teams){
+ const result=teamResult(game,teams);
+ $('resultsTitle').textContent=result.title;
+ $('results').setAttribute('aria-label',result.title);
+ for(let i=0;i<2;i++){
+  $('resultTeam'+(i+1)).textContent=teams[i].name;
+  $('resultScore'+(i+1)).textContent=result.scores[i];
  }
- $('scoreHead').replaceChildren(head);
- $('scoreBody').replaceChildren();
- for(const team of teams){
-  const row=document.createElement('tr'),name=document.createElement('th');name.scope='row';name.textContent=team.name;row.append(name);
-  for(const score of [...Array.from({length:completedRounds},(_,i)=>Number(team['round'+(i+1)+'_score'])),total(team)]){
-   const cell=document.createElement('td');cell.textContent=score;row.append(cell);
-  }
-  $('scoreBody').append(row);
- }
+ $('scoreLine').setAttribute('aria-label',teams[0].name+' '+result.scores[0]+' : '+result.scores[1]+' '+teams[1].name);
+ $('winner').textContent=result.winner;
 }
 async function refresh(){
  if(!gameId||!code){$('error').textContent='Відкрий посилання, яке надала ведуча';return}
@@ -46,12 +41,7 @@ async function refresh(){
    if(card.card_color==='black')cell.style.color='white';
    $('board').append(cell);
   }
-  if(state.results){
-   $('resultsTitle').textContent=g.status==='finished'?'Підсумки гри':'Раунд '+g.current_round+' завершено';
-   renderScores(t,g.status==='finished'?3:g.current_round);
-  }
-  const a=total(t[0]),b=total(t[1]);
-  $('winner').textContent=g.status==='finished'?(a===b?'Нічия!':'Перемогла '+(a>b?t[0].name:t[1].name)+'!'):'';
+  if(state.results)renderScores(g,t);
   tick();$('error').textContent='';
  }catch(e){$('error').textContent=e.message}
 }

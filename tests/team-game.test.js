@@ -21,6 +21,7 @@ for (const blueTeam of [1, 2]) test(`three-round lifecycle with team ${blueTeam}
     assert.equal((await h.call('team-game-admin', { action: 'generateBoard', gameId, blueTeam })).status, 409);
     assert.equal((await admin('details')).cards.length, 0);
     assert.equal((await h.call('team-play', { action: 'round2Start', gameId, blueTeam })).status, 409);
+    assert.equal((await h.call('team-play', { action: 'showFinalScore', gameId })).status, 409);
     await round1('start');
     let live = await call('team-live', null, { query: { gameId } });
     assert.equal(live.game.phase, 'round1_ready');
@@ -68,7 +69,13 @@ for (const blueTeam of [1, 2]) test(`three-round lifecycle with team ${blueTeam}
     assert.equal(live.isLastPrompt, true);
     await play('guess', { teamId: details.teams[0].id, correct: true });
     await play('finishGame');
-    assert.equal((await call('team-live', null, { query: { gameId } })).game.status, 'finished');
+    const round3Done = await call('team-live', null, { query: { gameId } });
+    assert.equal(round3Done.game.status, 'finished');
+    assert.equal(round3Done.game.phase, 'round3_done');
+    assert.equal((await h.call('team-play', { action: 'showFinalScore', gameId }, { public: true })).status, 401);
+    await play('showFinalScore');
+    assert.equal((await call('team-live', null, { public: true, query: { gameId, code: game.invite_code } })).game.phase, 'finished');
+    assert.equal((await h.call('team-play', { action: 'showFinalScore', gameId })).status, 409);
     await call('team-restart', { gameId });
     const reset = await admin('details');
     assert.equal(reset.game.status, 'setup');

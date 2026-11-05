@@ -14,3 +14,16 @@ export function teamScreenState(game, isTeamScreen, hasActiveWord) {
       round1 && isTeamScreen && !hasActiveWord ? 'Очікуємо ходу' : ''
   };
 }
+
+export function teamResult(game, teams) {
+  const final = game.status === 'finished' && game.phase === 'finished';
+  const scores = teams.map(team => final
+    ? Number(team.round1_score) + Number(team.round2_score) + Number(team.round3_score)
+    : Number(team['round' + game.current_round + '_score']));
+  return {
+    final,
+    title: final ? 'Загальний рахунок' : 'Підсумок раунду ' + game.current_round,
+    scores,
+    winner: final ? (scores[0] === scores[1] ? 'Нічия!' : 'Перемогла ' + teams[scores[0] > scores[1] ? 0 : 1].name + '!') : ''
+  };
+}

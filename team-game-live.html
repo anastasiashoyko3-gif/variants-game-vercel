@@ -4,7 +4,6 @@
 <body class="teamScreen">
 <main id="stage" class="teamStage">
   <header id="screenHeader">
-    <div class="eyebrow">Party Game</div>
     <h1 id="title">Командна гра</h1>
     <h2 id="round">Очікуємо початку</h2>
   </header>
@@ -15,9 +14,10 @@
     <p id="focusNotice" class="muted hidden"></p>
     <div id="board" class="hidden"></div>
   </section>
-  <section id="results" class="resultsScreen hidden" aria-label="Таблиця балів">
+  <section id="results" class="resultsScreen hidden" aria-label="Підсумок раунду">
     <h1 id="resultsTitle"></h1>
-    <table id="scoreTable"><thead id="scoreHead"></thead><tbody id="scoreBody"></tbody></table>
+    <div class="scoreNames"><h2 id="resultTeam1"></h2><h2 id="resultTeam2"></h2></div>
+    <div id="scoreLine" class="scoreLine" role="group" aria-label="Рахунок"><span id="resultScore1"></span><span aria-hidden="true">:</span><span id="resultScore2"></span></div>
     <p id="winner"></p>
   </section>
   <p id="error" class="muted" role="status"></p>
