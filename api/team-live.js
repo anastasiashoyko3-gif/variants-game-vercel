@@ -15,7 +15,7 @@ export default async function handler(req,res){
   const words=await sql.query("SELECT id,team_id,word_order,word,result FROM team_association_words WHERE game_id=$1 ORDER BY team_id,word_order",[id]);
   const active=words.find(w=>String(w.team_id)===String(g.active_team_id)&&w.result==='pending');
   const game={title:g.title,status:g.status,current_round:g.current_round,phase:g.phase,active_team_id:g.active_team_id,round_deadline:g.round_deadline,round_paused_seconds:g.round_paused_seconds};
-  const response={game,teams,serverTime:Date.now(),activeWordId:active?.id||null};
+  const response={game,teams,gameCode:g.invite_code,serverTime:Date.now(),activeWordId:active?.id||null};
   const secret=process.env.ADMIN_SESSION_SECRET||process.env.ADMIN_PASSWORD;
   const roleTeam=teams.find(t=>{
     if(!secret)return false;
