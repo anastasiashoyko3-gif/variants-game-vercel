@@ -1,3 +1,4 @@
+import {startRound2} from './_team-board.js';
 import {getDb} from './_db.js';
 import {isTeamAdmin} from './_team-auth.js';
 const parse=req=>typeof req.body==='object'?(req.body||{}):JSON.parse(req.body||'{}');
@@ -16,10 +17,10 @@ export default async function handler(req,res){
   if(g.status!=='playing')return res.status(409).json({error:'Гра не запущена або вже завершена'});
   if(action==='round2Start'){
    if(g.phase!=='round1_done')return res.status(409).json({error:'Спочатку заверши раунд 1'});
-   const [cards]=await sql.query('SELECT count(*)::int AS n FROM team_codenames_cards WHERE game_id=$1',[id]);
-   const [role]=await sql.query("SELECT team_id FROM team_codenames_roles WHERE game_id=$1 AND color='blue'",[id]);
-   if(cards.n!==25||!role)return res.status(409).json({error:'Згенеруй поле з 25 карток'});
-   await sql.query("UPDATE team_games SET current_round=2,phase='round2_play',active_team_id=$2,current_item=0,round_deadline=NULL WHERE id=$1 AND phase='round1_done'",[id,role.team_id]);
+   const blue=Number(b.blueTeam);
+   if(blue!==1&&blue!==2)return res.status(400).json({error:'Обери синю команду'});
+   if(teams.length!==2)return res.status(409).json({error:'Потрібні дві команди'});
+   await startRound2(sql,id,teams,blue);
    return res.json({ok:true});
   }
   if(action==='reveal'){
@@ -92,5 +93,8 @@ export default async function handler(req,res){
    return res.json({ok:true});
   }
   return res.status(400).json({error:'Невідома дія'});
- }catch(e){return res.status(500).json({error:e.message||'Помилка сервера'})}
+ }catch(e){
+  if(['40001','22012'].includes(e.code))return res.status(409).json({error:'Стан гри змінився. Онови сторінку й спробуй знову.'});
+  return res.status(e.status||500).json({error:e.message||'Помилка сервера'});
+ }
 }
