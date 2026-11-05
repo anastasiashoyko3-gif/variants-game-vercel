@@ -10,12 +10,7 @@ function renderLive(data){
  frozenSeconds=g.round_paused_seconds;
  $('liveStatus').textContent='Статус: '+g.phase+(active?' · '+active.name:'');
  $('liveWord').textContent=data.activeWord||'';
- $('liveScores').replaceChildren();
- for(const team of data.teams){
-  const block=document.createElement('div');block.className='card';block.style.margin='0';
-  block.textContent=team.name+' — '+(team.round1_score+team.round2_score+team.round3_score)+' балів';
-  $('liveScores').append(block);
- }
+ $('liveScores').textContent=data.teams[0].name+'  '+(Number(data.teams[0].round1_score)+Number(data.teams[0].round2_score)+Number(data.teams[0].round3_score))+' : '+(Number(data.teams[1].round1_score)+Number(data.teams[1].round2_score)+Number(data.teams[1].round3_score))+'  '+data.teams[1].name;
  setVisible('startRound',g.status==='setup');
  setVisible('correct',g.phase==='round1_play'&&!!data.activeWordId);
  setVisible('skip',g.phase==='round1_play'&&!!data.activeWordId);
