@@ -1,1 +1,26 @@
-<!doctype html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Командна гра · Екран</title><link rel="stylesheet" href="/css/style.css"></head><body><main class="shell" style="width:min(98vw,1900px);max-width:1900px"><div class="eyebrow">Party Game</div><h1 id="title">Командна гра</h1><section class="card" style="width:100%"><h2 id="round">Очікуємо початку</h2><div id="score" style="font-size:clamp(20px,5vw,40px);font-weight:800;text-align:center;margin:24px 0"></div><p id="status" style="text-align:center"></p><div id="timer" style="font-size:clamp(44px,10vw,90px);font-weight:800;text-align:center"></div><div id="word" style="font-size:clamp(24px,6vw,52px);font-weight:800;text-align:center;margin:28px 0"></div><div id="board" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(10px,1.1vw,20px);width:100%"></div><p id="winner" style="font-size:32px;font-weight:800;text-align:center"></p></section><p id="error" class="muted"></p></main><script type="module" src="/js/team-game-live.js"></script></body></html>
+<!doctype html>
+<html lang="uk">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Командна гра · Екран</title><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/team-screen.css"></head>
+<body class="teamScreen">
+<main id="stage" class="teamStage">
+  <header id="screenHeader">
+    <h1 id="title">Командна гра</h1>
+    <h2 id="round">Очікуємо початку</h2>
+  </header>
+  <section id="roundContent" class="roundContent">
+    <p id="status" class="muted"></p>
+    <div id="timer" class="hidden"></div>
+    <div id="word" class="hidden"></div>
+    <p id="focusNotice" class="muted hidden"></p>
+    <div id="board" class="hidden"></div>
+  </section>
+  <section id="results" class="resultsScreen hidden" aria-label="Підсумок раунду">
+    <h1 id="resultsTitle"></h1>
+    <div class="scoreNames"><h2 id="resultTeam1"></h2><h2 id="resultTeam2"></h2></div>
+    <div id="scoreLine" class="scoreLine" role="group" aria-label="Рахунок"><span id="resultScore1"></span><span aria-hidden="true">:</span><span id="resultScore2"></span></div>
+    <p id="winner"></p>
+  </section>
+  <p id="error" class="muted" role="status"></p>
+</main>
+<script type="module" src="/js/team-game-live.js"></script>
+</body></html>

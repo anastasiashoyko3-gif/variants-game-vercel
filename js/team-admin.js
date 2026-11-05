@@ -9,7 +9,7 @@ let serverOffset=0, deadline=null, lastLive=null, frozenSeconds=null;
 function setVisible(id,show){$(id).classList.toggle('hidden',!show)}
 function renderLive(data){
  renderLater(data);
- $('currentRoundTitle').textContent=data.game.status==='finished'?'Фінал · Підсумки':data.game.current_round===1?'Раунд 1 · Асоціації':data.game.current_round===2?'Раунд 2 · Кодові імена':'Раунд 3 · Смішні описи';
+ $('currentRoundTitle').textContent=data.game.status==='finished'?'Фінал · Підсумки':data.game.current_round===1?'Раунд 1 · Асоціації':data.game.current_round===2?'Раунд 2 · Кодові імена':'Раунд 3';
  setVisible('liveTimer',data.game.current_round===1&&data.game.status==='playing'&&data.game.phase!=='round1_done');
  setVisible('liveWord',data.game.current_round===1&&data.game.status==='playing'&&data.game.phase!=='round1_done');
  const playing=data.game.status!=='setup';
@@ -22,7 +22,7 @@ function renderLive(data){
  serverOffset=data.serverTime-Date.now();
  deadline=g.round_deadline?new Date(g.round_deadline).getTime():null;
  frozenSeconds=g.round_paused_seconds;
- const phases={setup:'Підготовка',round1_ready:'Готові до запуску таймера',round1_play:'Триває хід',round1_team_done:'Хід команди завершено',round1_done:'Перший раунд завершено',round2_play:'Триває другий раунд',round2_done:'Другий раунд завершено',round3_play:'Чекаємо відповідь',round3_wait_next:'Правильну відповідь зараховано',finished:'Гру завершено'};
+ const phases={setup:'Підготовка',round1_ready:'Готові до запуску таймера',round1_play:'Триває хід',round1_team_done:'Хід команди завершено',round1_done:'Перший раунд завершено',round2_play:'Триває другий раунд',round2_done:'Другий раунд завершено',round3_play:'Чекаємо відповідь',round3_wait_next:'Правильну відповідь зараховано',round3_done:'Третій раунд завершено · Можна показати загальний рахунок',finished:'Гру завершено'};
  $('liveStatus').textContent=(phases[g.phase]||g.phase)+(active&&g.phase!=='round1_done'?' · '+active.name:'');
  $('liveWord').textContent=data.activeWord||'';
  $('liveScores').textContent=data.teams[0].name+'  '+(Number(data.teams[0].round1_score)+Number(data.teams[0].round2_score)+Number(data.teams[0].round3_score))+' : '+(Number(data.teams[1].round1_score)+Number(data.teams[1].round2_score)+Number(data.teams[1].round3_score))+'  '+data.teams[1].name;
@@ -160,14 +160,15 @@ function renderLater(data){
  }
  setVisible('nextPrompt',g.phase==='round3_wait_next'&&!data.isLastPrompt);
  setVisible('finishGame',g.phase==='round3_wait_next'&&data.isLastPrompt);
+ setVisible('showFinalScore',g.status==='finished'&&g.phase==='round3_done');
  const a=total(teams[0]),b=total(teams[1]);
- $('winner').textContent=g.status==='finished'?(a===b?'Нічия!':('Перемогла '+(a>b?teams[0].name:teams[1].name)+'!')):'';
+ $('winner').textContent=g.status==='finished'?(a===b?'Нічия!':('Перемогли: '+(a>b?teams[0].name:teams[1].name)+'!')):'';
 }
 async function playAction(action,extra={}){
  try{await request('/api/team-play',{action,gameId:selectedGame,...extra});await loadLive();message('Збережено')}
  catch(e){message(e.message)}
 }
-for(const action of ['switchTeam','endRound2','round3Start','nextPrompt','finishGame'])
+for(const action of ['switchTeam','endRound2','round3Start','nextPrompt','finishGame','showFinalScore'])
  $(action).onclick=()=>playAction(action);
 
 $('blueTeam').onchange=()=>{$('round2Start').disabled=!$('blueTeam').value};

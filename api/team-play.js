@@ -14,6 +14,11 @@ export default async function handler(req,res){
   if(!g)return res.status(404).json({error:'Гру не знайдено'});
   const teams=await sql.query('SELECT id FROM team_game_teams WHERE game_id=$1 ORDER BY display_order',[id]);
   const team=teams.find(t=>String(t.id)===String(b.teamId));
+  if(action==='showFinalScore'){
+   if(g.status!=='finished'||g.phase!=='round3_done')return res.status(409).json({error:'Спочатку заверши третій раунд'});
+   await sql.query("UPDATE team_games SET phase='finished' WHERE id=$1 AND status='finished' AND phase='round3_done'",[id]);
+   return res.json({ok:true});
+  }
   if(g.status!=='playing')return res.status(409).json({error:'Гра не запущена або вже завершена'});
   if(action==='round2Start'){
    if(g.phase!=='round1_done')return res.status(409).json({error:'Спочатку заверши раунд 1'});
@@ -89,7 +94,7 @@ export default async function handler(req,res){
    if(!['round3_wait_next','round3_play'].includes(g.phase))return res.status(409).json({error:'Раунд 3 не активний'});
    const [last]=await sql.query('SELECT max(prompt_order)::int AS n FROM team_absurd_prompts WHERE game_id=$1',[id]);
    if(g.current_item!==last.n||g.phase!=='round3_wait_next')return res.status(409).json({error:'Спочатку заверши всі описи'});
-   await sql.query("UPDATE team_games SET status='finished',phase='finished',finished_at=now() WHERE id=$1",[id]);
+   await sql.query("UPDATE team_games SET status='finished',phase='round3_done',finished_at=now() WHERE id=$1",[id]);
    return res.json({ok:true});
   }
   return res.status(400).json({error:'Невідома дія'});

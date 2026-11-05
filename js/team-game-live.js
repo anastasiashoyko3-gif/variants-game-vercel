@@ -1,31 +1,48 @@
-const $=id=>document.getElementById(id),params=new URLSearchParams(location.search),gameId=params.get('gameId'),code=params.get('code'),roleToken=params.get('roleToken');let deadline=0,offset=0,freeze=0;
-function show(id,on){$(id).style.display=on?(id==='board'?'grid':''):'none'}
+import { teamScreenState, teamResult } from './team-screen-state.js';
+const $=id=>document.getElementById(id),params=new URLSearchParams(location.search),gameId=params.get('gameId'),code=params.get('code'),roleToken=params.get('roleToken');
+let deadline=0,offset=0,freeze=0;
+function show(id,on){$(id).classList.toggle('hidden',!on)}
+function renderScores(game,teams){
+ const result=teamResult(game,teams);
+ $('resultsTitle').textContent=result.title;
+ $('results').setAttribute('aria-label',result.title);
+ for(let i=0;i<2;i++){
+  $('resultTeam'+(i+1)).textContent=teams[i].name;
+  $('resultScore'+(i+1)).textContent=result.scores[i];
+ }
+ $('scoreLine').setAttribute('aria-label',teams[0].name+' '+result.scores[0]+' : '+result.scores[1]+' '+teams[1].name);
+ $('winner').textContent=result.winner;
+}
 async function refresh(){
- if(!gameId||!code){$('error').textContent='Відкрий посилання, яке надав ведучий';return}
+ if(!gameId||!code){$('error').textContent='Відкрий посилання, яке надала ведуча';return}
  try{
   const res=await fetch('/api/team-live?'+new URLSearchParams({gameId,code,...(roleToken?{roleToken}:{})}),{cache:'no-store'});
   const d=await res.json();if(!res.ok)throw Error(d.error||'Помилка');
-  const g=d.game,t=d.teams;
+  const g=d.game,t=d.teams,state=teamScreenState(g,!!roleToken,!!d.activeWord);
   offset=d.serverTime-Date.now();deadline=g.round_deadline?new Date(g.round_deadline).getTime():0;freeze=g.round_paused_seconds??0;
+  $('stage').dataset.mode=state.mode;
+  show('screenHeader',state.mode==='standard');
+  show('roundContent',!state.results);
+  show('results',state.results);
   $('title').textContent=g.title;
-  $('score').textContent=t[0].name+'  '+(Number(t[0].round1_score)+Number(t[0].round2_score)+Number(t[0].round3_score))+' : '+(Number(t[1].round1_score)+Number(t[1].round2_score)+Number(t[1].round3_score))+'  '+t[1].name;
-  $('round').textContent=g.status==='finished'?'Фінал':g.current_round===1?'Раунд 1 · Асоціації':g.current_round===2?'Раунд 2 · Кодові імена':'Раунд 3 · Смішні описи';
+  $('round').textContent=g.current_round===1?'Раунд 1 · Асоціації':g.current_round===2?'Раунд 2 · Кодові імена':'Раунд 3';
   const active=t.find(x=>String(x.id)===String(g.active_team_id));
-  $('status').textContent=g.status==='setup'?'Очікуємо початку гри':g.phase==='round1_done'?'Перший раунд завершено':g.phase==='round2_done'?'Другий раунд завершено':g.phase==='round3_wait_next'?'Правильно! Очікуємо наступний опис':g.status==='finished'?'Гру завершено':active?'Зараз грає: '+active.name:'';
-  show('timer',g.current_round===1&&g.status==='playing'&&!roleToken);
-  show('word',g.status==='playing'&&((g.current_round===1&&!!roleToken)||(g.current_round===3)));
-  $('word').textContent=g.current_round===1?(d.activeWord||''):g.current_round===3?(d.prompt?.description||''):'';
-  show('board',g.current_round===2&&g.status==='playing');
+  $('status').textContent=g.status==='setup'?'Очікуємо початку гри':g.phase==='round3_wait_next'?'Правильно! Очікуємо наступний опис':active?'Зараз грає: '+active.name:'';
+  show('status',state.mode==='standard');
+  show('timer',state.timer);
+  show('word',state.word);
+  $('word').textContent=state.word?(g.current_round===1?d.activeWord:(d.prompt?.description||'')):'';
+  $('focusNotice').textContent=state.notice;show('focusNotice',!!state.notice);
+  show('board',state.board);
   $('board').replaceChildren();
-  if(g.current_round===2)for(const card of d.cards){
-   const cell=document.createElement('div');cell.textContent=card.word;
-   const colors={blue:'#9cc7ff',red:'#ffacbd',neutral:'#e5e1d9',black:'#43404b'};
-   cell.style.cssText='padding:clamp(18px,2.2vw,34px) 8px;min-height:clamp(95px,8.5vw,155px);display:flex;align-items:center;justify-content:center;border-radius:12px;text-align:center;overflow-wrap:anywhere;font-weight:800;font-size:clamp(22px,2vw,36px);line-height:1.15;background:'+(card.card_color?colors[card.card_color]:'#f3e8ff')+';color:'+(card.card_color==='black'?'white':'#251b33');
+  if(state.board)for(const card of d.cards){
+   const cell=document.createElement('div');cell.className='boardCell';cell.textContent=card.word;
+   cell.style.background=({blue:'#9cc7ff',red:'#ffacbd',neutral:'#e5e1d9',black:'#43404b'}[card.card_color]||'#f3e8ff');
+   if(card.card_color==='black')cell.style.color='white';
    $('board').append(cell);
   }
-  const a=Number(t[0].round1_score)+Number(t[0].round2_score)+Number(t[0].round3_score),b=Number(t[1].round1_score)+Number(t[1].round2_score)+Number(t[1].round3_score);
-  $('winner').textContent=g.status==='finished'?(a===b?'Нічия!':'Перемогла '+(a>b?t[0].name:t[1].name)+'!'):'';
-  $('error').textContent='';
+  if(state.results)renderScores(g,t);
+  tick();$('error').textContent='';
  }catch(e){$('error').textContent=e.message}
 }
 function tick(){const s=deadline?Math.max(0,Math.ceil((deadline-Date.now()-offset)/1000)):freeze;$('timer').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
