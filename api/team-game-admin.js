@@ -27,6 +27,18 @@ export default async function handler(req, res) {
       if(!deleted.length)return res.status(404).json({error:'Гру вже видалено або не знайдено'});
       return res.status(200).json({ok:true});
     }
+    if(body.action==='restart' && validId(body.gameId)){
+      const id=Number(body.gameId);
+      const game=await sql.query('SELECT id FROM team_games WHERE id=$1',[id]);
+      if(!game.length)return res.status(404).json({error:'Гру не знайдено'});
+      await sql.query("UPDATE team_games SET status='setup',current_round=1,phase='setup',active_team_id=NULL,current_item=0,round_deadline=NULL,round_paused_seconds=NULL,finished_at=NULL WHERE id=$1",[id]);
+      await sql.query('UPDATE team_game_teams SET round1_score=0,round2_score=0,round3_score=0 WHERE game_id=$1',[id]);
+      await sql.query("UPDATE team_association_words SET result='pending' WHERE game_id=$1",[id]);
+      await sql.query('UPDATE team_codenames_cards SET revealed=false,revealed_by_team_id=NULL WHERE game_id=$1',[id]);
+      await sql.query('UPDATE team_absurd_prompts SET solved_by_team_id=NULL WHERE game_id=$1',[id]);
+      await sql.query('DELETE FROM team_score_events WHERE game_id=$1',[id]);
+      return res.status(200).json({ok:true});
+    }
     if (body.action === 'create') {
       const teams=body.teams;
       if (!Array.isArray(teams) || teams.length !== 2 || !teams.every(validateTeam)) {
