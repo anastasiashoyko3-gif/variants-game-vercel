@@ -4,7 +4,7 @@ let returnToMenu=()=>{};
 export function configureTeamAdmin(onBack){returnToMenu=onBack}
 export function closeTeamAdmin(){selectedGame=null;lastLive=null;deadline=null;root.classList.add('hidden')}
 
-let selectedGame=null, prompts=[];
+let selectedGame=null, prompts=[], editingPrompt=null, playBusy=false;
 let serverOffset=0, deadline=null, lastLive=null, frozenSeconds=null;
 function setVisible(id,show){$(id).classList.toggle('hidden',!show)}
 function renderLive(data){
@@ -27,12 +27,13 @@ function renderLive(data){
  $('liveWord').textContent=data.activeWord||'';
  $('liveScores').textContent=data.teams[0].name+'  '+(Number(data.teams[0].round1_score)+Number(data.teams[0].round2_score)+Number(data.teams[0].round3_score))+' : '+(Number(data.teams[1].round1_score)+Number(data.teams[1].round2_score)+Number(data.teams[1].round3_score))+'  '+data.teams[1].name;
  setVisible('startRound',g.status==='setup');
+ setVisible('firstTeamField',g.status==='setup');
  setVisible('startTimer',g.phase==='round1_ready');
  setVisible('correct',g.phase==='round1_play'&&!!data.activeWordId);
  setVisible('skip',g.phase==='round1_play'&&!!data.activeWordId);
  setVisible('closeTime',g.phase==='round1_play'&&deadline!==null&&deadline<=Date.now()+serverOffset);
- setVisible('nextTeam',g.phase==='round1_team_done'&&String(g.active_team_id)===String(data.teams[0].id));
- setVisible('finishRound',g.phase==='round1_team_done'&&String(g.active_team_id)===String(data.teams[1].id));
+ setVisible('nextTeam',g.phase==='round1_team_done'&&String(g.active_team_id)===String(data.teams[(g.round1_first_team||1)-1].id));
+ setVisible('finishRound',g.phase==='round1_team_done'&&String(g.active_team_id)===String(data.teams[2-(g.round1_first_team||1)].id));
  $('liveTimer').textContent=deadline?formatTime(Math.max(0,Math.ceil((deadline-Date.now()-serverOffset)/1000))):formatTime(frozenSeconds??0);
 }
 function formatTime(seconds){return String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')}
@@ -40,7 +41,7 @@ async function loadLive(){if(!selectedGame)return;const requestedGame=selectedGa
 async function actionRound(action,result){
  if(!selectedGame)return;
  try{
-  await request('/api/team-round1',{action,gameId:selectedGame,...(result?{result}:{})});
+  await request('/api/team-round1',{action,gameId:selectedGame,...(result?{result}:{}),...(action==='start'?{firstTeam:Number($('firstTeam').value)}:{})});
   await loadLive();
   if(action==='start')await openTeamGame(selectedGame);
  }catch(e){message(e.message)}
@@ -59,16 +60,22 @@ setInterval(()=>{
 },500);
 setInterval(()=>{if(selectedGame)loadLive().catch(()=>{})},2000);
 
+function clearPromptForm(){
+ editingPrompt=null;for(const id of ['hint1','hint2','hint3','answer'])$(id).value='';
+ $('addPrompt').textContent='Додати завдання';
+}
 function drawPrompts(){
  $('prompts').replaceChildren();
  prompts.forEach((p,i)=>{
   const row=document.createElement('div');row.className='gameItem';
-  const info=document.createElement('div');info.style.whiteSpace='pre-wrap';info.textContent=(i+1)+'. '+p.description+' — '+p.answer;
+  const info=document.createElement('div');info.style.whiteSpace='pre-wrap';
+  const hints=p.hints||[p.description];
+  info.textContent=(i+1)+'. '+p.answer+'\n'+hints.map((h,n)=>(n+1)+' · '+h).join('\n')+(hints.length<3?'\nЗбережений опис: відредагуй завдання, щоб додати три асоціації.':'');
   const edit=document.createElement('button');edit.className='secondary smallBtn';edit.textContent='Редагувати';
-  edit.onclick=()=>{const d=window.prompt('Опис',p.description);if(d===null)return;const a=window.prompt('Відповідь',p.answer);if(a===null)return;if(!d.trim()||!a.trim())return message('Опис і відповідь не можуть бути порожні');prompts[i]={description:d.trim(),answer:a.trim()};drawPrompts()};
-  const remove=document.createElement('button');remove.className='danger smallBtn';remove.textContent='Видалити';remove.onclick=()=>{prompts.splice(i,1);drawPrompts()};
-  const up=document.createElement('button');up.className='secondary smallBtn';up.textContent='↑';up.disabled=i===0;up.onclick=()=>{[prompts[i-1],prompts[i]]=[prompts[i],prompts[i-1]];drawPrompts()};
-  const down=document.createElement('button');down.className='secondary smallBtn';down.textContent='↓';down.disabled=i===prompts.length-1;down.onclick=()=>{[prompts[i+1],prompts[i]]=[prompts[i],prompts[i+1]];drawPrompts()};
+  edit.onclick=()=>{editingPrompt=i;for(let n=0;n<3;n++)$('hint'+(n+1)).value=hints[n]||'';$('answer').value=p.answer;$('addPrompt').textContent='Зберегти зміни завдання';$('hint1').scrollIntoView({behavior:'smooth'})};
+  const remove=document.createElement('button');remove.className='danger smallBtn';remove.textContent='Видалити';remove.onclick=()=>{prompts.splice(i,1);clearPromptForm();drawPrompts()};
+  const up=document.createElement('button');up.className='secondary smallBtn';up.textContent='↑';up.disabled=i===0;up.onclick=()=>{[prompts[i-1],prompts[i]]=[prompts[i],prompts[i-1]];clearPromptForm();drawPrompts()};
+  const down=document.createElement('button');down.className='secondary smallBtn';down.textContent='↓';down.disabled=i===prompts.length-1;down.onclick=()=>{[prompts[i+1],prompts[i]]=[prompts[i],prompts[i+1]];clearPromptForm();drawPrompts()};
   const actions=document.createElement('div');actions.className='actions';actions.append(edit,up,down,remove);row.append(info,actions);$('prompts').append(row);
  });
 }
@@ -88,16 +95,20 @@ export async function openTeamGame(id){
  }
  $('blueTeam').replaceChildren(new Option('Обери команду',''));
  data.teams.forEach((team,i)=>$('blueTeam').append(new Option(team.name,String(i+1))));
- prompts=data.prompts.map(p=>({description:p.description,answer:p.answer}));drawPrompts();
+ $('firstTeam').replaceChildren();data.teams.forEach((team,i)=>$('firstTeam').append(new Option(team.name,String(i+1))));
+ $('firstTeam').value=String(data.game.round1_first_team||1);
+ prompts=data.prompts.map(p=>p.hints.length===3?{hints:p.hints,answer:p.answer}:{description:p.description,answer:p.answer});clearPromptForm();drawPrompts();
  const locked=data.game.status!=='setup';
- for(const id of ['words1','words2','description','answer','addPrompt','saveContent'])$(id).disabled=locked;
+ for(const id of ['words1','words2','hint1','hint2','hint3','answer','addPrompt','saveContent','firstTeam'])$(id).disabled=locked;
  message(locked?'Гра вже запущена: редагування закрито':'Можна редагувати завдання');
  root.scrollIntoView({behavior:'smooth'});
 }
 $('addPrompt').onclick=()=>{
- const description=$('description').value.trim(),answer=$('answer').value.trim();
- if(!description||!answer)return message('Заповни опис та відповідь');
- prompts.push({description,answer});$('description').value='';$('answer').value='';drawPrompts();
+ const hints=[1,2,3].map(i=>$('hint'+i).value.trim()),answer=$('answer').value.trim();
+ if(hints.some(h=>!h)||!answer)return message('Заповни всі три асоціації та відповідь');
+ const item={hints,answer};
+ if(editingPrompt===null)prompts.push(item);else prompts[editingPrompt]=item;
+ clearPromptForm();drawPrompts();
 };
 $('saveContent').onclick=async()=>{
  if(!selectedGame)return;
@@ -119,7 +130,7 @@ async function request(url,body){
 function renderLater(data){
  const g=data.game,teams=data.teams;
  const total=t=>Number(t.round1_score)+Number(t.round2_score)+Number(t.round3_score);
- $('liveScores').textContent=teams.map(t=>t.name).join(' : ')+'   '+total(teams[0])+' : '+total(teams[1]);
+ $('liveScores').textContent=teams[0].name+' '+total(teams[0])+' : '+total(teams[1])+' '+teams[1].name;
  $('shareLinks').replaceChildren();
  const viewer=document.createElement('a');viewer.href='/team-game-live.html?gameId='+selectedGame+'&code='+encodeURIComponent(data.gameCode||'');viewer.className='button secondary';viewer.textContent='Екран глядачів';viewer.target='_blank';
  $('shareLinks').append(viewer);
@@ -147,14 +158,23 @@ function renderLater(data){
  }
  setVisible('round3Panel',g.status==='playing'&&(g.phase==='round2_done'||g.current_round===3));
  setVisible('round3Start',g.phase==='round2_done');
- $('round3Description').textContent=data.prompt?.description||'';
+ $('round3Description').replaceChildren();
+ if(data.prompt)for(const [i,hint] of data.prompt.hints.entries()){
+  const line=document.createElement('p');line.textContent=(i+1)+'. '+hint;
+  line.className=i<data.prompt.hintStage?'':'muted';$('round3Description').append(line);
+ }
+ $('hintValue').textContent=data.prompt?'Відкрито '+data.prompt.hintStage+' із '+data.prompt.hintCount+' · Правильна відповідь +'+data.prompt.points+' · Помилка −2 · Спроби необмежені':'';
+ setVisible('revealHint',g.phase==='round3_play'&&!!data.prompt&&data.prompt.hintStage<data.prompt.hintCount);
+ $('revealHint').disabled=playBusy;
+ $('revealHint').textContent='Відкрити підказку '+((data.prompt?.hintStage||1)+1);
  $('round3Answer').textContent=data.prompt?'Відповідь для адміна: '+data.prompt.answer:'';
  $('guessButtons').replaceChildren();
  if(g.phase==='round3_play')for(const t of teams){
   for(const correct of [false,true]){
    const b=document.createElement('button');b.className=correct?'':'secondary';
-   b.textContent=t.name+' · '+(correct?'+3':'−3');
-   b.onclick=()=>playAction('guess',{teamId:t.id,correct});
+   b.disabled=playBusy;
+   b.textContent=t.name+' · '+(correct?'+'+data.prompt.points:'−2');
+   b.onclick=()=>playAction('guess',{teamId:t.id,correct,hintStage:data.prompt.hintStage,promptOrder:g.current_item});
    $('guessButtons').append(b);
   }
  }
@@ -165,9 +185,12 @@ function renderLater(data){
  $('winner').textContent=g.status==='finished'?(a===b?'Нічия!':('Перемогли: '+(a>b?teams[0].name:teams[1].name)+'!')):'';
 }
 async function playAction(action,extra={}){
+ if(playBusy)return;playBusy=true;
+ for(const button of root.querySelectorAll('#guessButtons button,#revealHint'))button.disabled=true;
  try{await request('/api/team-play',{action,gameId:selectedGame,...extra});await loadLive();message('Збережено')}
- catch(e){message(e.message)}
+ catch(e){message(e.message)}finally{playBusy=false;if(lastLive)renderLater(lastLive)}
 }
+$('revealHint').onclick=()=>{if(lastLive?.prompt)playAction('revealHint',{hintStage:lastLive.prompt.hintStage,promptOrder:lastLive.game.current_item})};
 for(const action of ['switchTeam','endRound2','round3Start','nextPrompt','finishGame','showFinalScore'])
  $(action).onclick=()=>playAction(action);
 

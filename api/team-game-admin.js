@@ -1,3 +1,4 @@
+import { ensureTeamFeatures, promptHints } from './_team-features.js';
 import crypto from 'crypto';
 import { getDb } from './_db.js';
 import { isTeamAdmin } from './_team-auth.js';
@@ -16,6 +17,7 @@ export default async function handler(req, res) {
   if (!isTeamAdmin(req)) return res.status(401).json({error:'Потрібен вхід в адмінку'});
   const sql=getDb();
   try {
+    await ensureTeamFeatures(sql);
     if (req.method === 'GET') {
       const games=await sql.query('SELECT id,title,invite_code,status,current_round FROM team_games ORDER BY id DESC LIMIT 100');
       return res.status(200).json({games});
@@ -31,7 +33,7 @@ export default async function handler(req, res) {
       const id=Number(body.gameId);
       const game=await sql.query('SELECT id FROM team_games WHERE id=$1',[id]);
       if(!game.length)return res.status(404).json({error:'Гру не знайдено'});
-      await sql.query("UPDATE team_games SET status='setup',current_round=1,phase='setup',active_team_id=NULL,current_item=0,round_deadline=NULL,round_paused_seconds=NULL,finished_at=NULL WHERE id=$1",[id]);
+      await sql.query("UPDATE team_games SET status='setup',current_round=1,phase='setup',active_team_id=NULL,current_item=0,round3_hint=1,round_deadline=NULL,round_paused_seconds=NULL,finished_at=NULL WHERE id=$1",[id]);
       await sql.query('UPDATE team_game_teams SET round1_score=0,round2_score=0,round3_score=0 WHERE game_id=$1',[id]);
       await sql.query("UPDATE team_association_words SET result='pending' WHERE game_id=$1",[id]);
       await sql.query('DELETE FROM team_codenames_cards WHERE game_id=$1',[id]);
@@ -59,14 +61,14 @@ export default async function handler(req, res) {
     }
     if (body.action === 'details' && validId(body.gameId)) {
       const id=Number(body.gameId);
-      const games=await sql.query('SELECT id,title,status,current_round FROM team_games WHERE id=$1',[id]);
+      const games=await sql.query('SELECT id,title,status,current_round,round1_first_team FROM team_games WHERE id=$1',[id]);
       if(!games.length) return res.status(404).json({error:'Гру не знайдено'});
       const teams=await sql.query('SELECT id,name,color,display_order,round1_score,round2_score,round3_score FROM team_game_teams WHERE game_id=$1 ORDER BY display_order',[id]);
       const words=await sql.query('SELECT team_id,word_order,word FROM team_association_words WHERE game_id=$1 ORDER BY team_id,word_order',[id]);
-      const prompts=await sql.query('SELECT prompt_order,description,answer FROM team_absurd_prompts WHERE game_id=$1 ORDER BY prompt_order',[id]);
+      const prompts=await sql.query('SELECT prompt_order,description,hints_json,answer FROM team_absurd_prompts WHERE game_id=$1 ORDER BY prompt_order',[id]);
       const cards=await sql.query('SELECT c.position,b.word,c.card_color,c.revealed FROM team_codenames_cards c JOIN team_codenames_bank b ON b.id=c.word_id WHERE c.game_id=$1 ORDER BY c.position',[id]);
       const roles=await sql.query('SELECT team_id,color FROM team_codenames_roles WHERE game_id=$1',[id]);
-      return res.status(200).json({game:games[0],teams,words,prompts,cards,roles});
+      return res.status(200).json({game:games[0],teams,words,prompts:prompts.map(p=>({...p,hints:promptHints(p)})),cards,roles});
     }
     if (body.action === 'saveContent' && validId(body.gameId)) {
       const id=Number(body.gameId);
@@ -78,17 +80,22 @@ export default async function handler(req, res) {
       const lists=body.wordLists, prompts=body.prompts;
       if(!Array.isArray(lists)||lists.length!==2||lists.some(list=>!Array.isArray(list)||list.length>150||list.some(w=>typeof w!=='string'||!w.trim()||w.length>120)))
         return res.status(400).json({error:'Перевір слова першого раунду (до 150 на команду)'});
-      if(!Array.isArray(prompts)||prompts.length>150||prompts.some(p=>!p||typeof p.description!=='string'||!p.description.trim()||p.description.length>5000||typeof p.answer!=='string'||!p.answer.trim()||p.answer.length>200))
-        return res.status(400).json({error:'Перевір описи та відповіді третього раунду'});
-      await sql.query('DELETE FROM team_association_words WHERE game_id=$1',[id]);
+      if(!Array.isArray(prompts)||prompts.length>150||prompts.some(p=>!p||typeof p.answer!=='string'||!p.answer.trim()||p.answer.length>200||
+        (p.hints ? !Array.isArray(p.hints)||p.hints.length!==3||p.hints.some(h=>typeof h!=='string'||!h.trim()||h.length>500) : typeof p.description!=='string'||!p.description.trim()||p.description.length>5000)))
+        return res.status(400).json({error:'Додай три асоціації (до 500 символів кожна) та відповідь до кожного завдання'});
+      const changes=[
+        sql.query("SELECT 1 / CASE WHEN status='setup' THEN 1 ELSE 0 END FROM team_games WHERE id=$1 FOR UPDATE",[id]),
+        sql.query('DELETE FROM team_association_words WHERE game_id=$1',[id])
+      ];
       for(let i=0;i<2;i++)for(let j=0;j<lists[i].length;j++)
-        await sql.query('INSERT INTO team_association_words(game_id,team_id,word_order,word) VALUES($1,$2,$3,$4)',[id,teams[i].id,j,lists[i][j].trim()]);
-      await sql.query('DELETE FROM team_absurd_prompts WHERE game_id=$1',[id]);
+        changes.push(sql.query('INSERT INTO team_association_words(game_id,team_id,word_order,word) VALUES($1,$2,$3,$4)',[id,teams[i].id,j,lists[i][j].trim()]));
+      changes.push(sql.query('DELETE FROM team_absurd_prompts WHERE game_id=$1',[id]));
       for(let j=0;j<prompts.length;j++)
-        await sql.query('INSERT INTO team_absurd_prompts(game_id,prompt_order,description,answer) VALUES($1,$2,$3,$4)',[id,j,prompts[j].description.trim(),prompts[j].answer.trim()]);
+        changes.push(sql.query('INSERT INTO team_absurd_prompts(game_id,prompt_order,description,hints_json,answer) VALUES($1,$2,$3,$4::jsonb,$5)',[id,j,prompts[j].hints?prompts[j].hints.join('\n'):prompts[j].description.trim(),prompts[j].hints?JSON.stringify(prompts[j].hints.map(h=>h.trim())):null,prompts[j].answer.trim()]));
+      await sql.transaction(changes,{isolationLevel:'Serializable'});
       return res.status(200).json({ok:true});
     }
     if(body.action==='generateBoard')return res.status(409).json({error:'Обери кольори й запусти другий раунд після завершення першого'});
     return res.status(400).json({error:'Невідома дія'});
-  } catch(error) { return res.status(500).json({error:error.message || 'Помилка сервера'}); }
+  } catch(error) { if(['40001','22012'].includes(error.code))return res.status(409).json({error:'Стан гри змінився. Онови сторінку.'});return res.status(500).json({error:error.message || 'Помилка сервера'}); }
 }

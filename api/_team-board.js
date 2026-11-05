@@ -1,9 +1,11 @@
+import { ensureCodenamesBank, CODENAMES_WORDS } from './_codenames-bank.js';
 import crypto from 'crypto';
 
 // Reserve words, replace any legacy board and start the round as one transaction.
 // Serializable isolation also rejects simultaneous starts and competing word claims.
 export async function startRound2(sql, gameId, teams, blueTeam) {
-  const available = await sql.query('SELECT id FROM team_codenames_bank WHERE used_at IS NULL ORDER BY random() LIMIT 25');
+  await ensureCodenamesBank(sql);
+  const available = await sql.query('SELECT id FROM team_codenames_bank WHERE word=ANY($1::text[]) AND used_at IS NULL ORDER BY random() LIMIT 25', [CODENAMES_WORDS]);
   if (available.length < 25) throw Object.assign(new Error('У банку замало невикористаних слів. Додай нові слова.'), { status: 409 });
   const wordIds = available.map(word => word.id);
   const colors = [...Array(9).fill('blue'), ...Array(8).fill('red'), ...Array(7).fill('neutral'), 'black'];

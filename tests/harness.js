@@ -3,11 +3,12 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
 
-export async function createHarness() {
+export async function createHarness({ legacySchema = false } = {}) {
   const db = new PGlite();
   await db.exec(await readFile(new URL('../team_game_schema.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../neon_schema.sql', import.meta.url), 'utf8'));
   await db.exec("INSERT INTO team_codenames_bank(word) SELECT 'слово '||n FROM generate_series(1,100) n");
+  if (legacySchema) await db.exec('ALTER TABLE team_games DROP COLUMN round1_first_team; ALTER TABLE team_games DROP COLUMN round3_hint; ALTER TABLE team_absurd_prompts DROP COLUMN hints_json');
   // Match Neon's lazy query contract: transaction receives queries before execution.
   const sql = {
     query(text, params = []) {

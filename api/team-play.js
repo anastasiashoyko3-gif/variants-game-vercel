@@ -1,3 +1,4 @@
+import { ensureTeamFeatures, promptHints, hintPoints } from './_team-features.js';
 import {startRound2} from './_team-board.js';
 import {getDb} from './_db.js';
 import {isTeamAdmin} from './_team-auth.js';
@@ -10,6 +11,7 @@ export default async function handler(req,res){
  if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({error:'Невірна гра'});
  const sql=getDb();
  try{
+  await ensureTeamFeatures(sql);
   const [g]=await sql.query('SELECT * FROM team_games WHERE id=$1',[id]);
   if(!g)return res.status(404).json({error:'Гру не знайдено'});
   const teams=await sql.query('SELECT id FROM team_game_teams WHERE game_id=$1 ORDER BY display_order',[id]);
@@ -65,7 +67,17 @@ export default async function handler(req,res){
    if(g.phase!=='round2_done')return res.status(409).json({error:'Спочатку заверши раунд 2'});
    const [n]=await sql.query('SELECT count(*)::int AS n FROM team_absurd_prompts WHERE game_id=$1',[id]);
    if(!n.n)return res.status(409).json({error:'Додай описи третього раунду'});
-   await sql.query("UPDATE team_games SET current_round=3,phase='round3_play',active_team_id=NULL,current_item=0 WHERE id=$1 AND phase='round2_done'",[id]);
+   await sql.query("UPDATE team_games SET current_round=3,phase='round3_play',active_team_id=NULL,current_item=0,round3_hint=1 WHERE id=$1 AND phase='round2_done'",[id]);
+   return res.json({ok:true});
+  }
+  if(action==='revealHint'){
+   if(g.phase!=='round3_play')return res.status(409).json({error:'Зараз не можна відкрити підказку'});
+   const [prompt]=await sql.query('SELECT description,hints_json FROM team_absurd_prompts WHERE game_id=$1 AND prompt_order=$2',[id,g.current_item]);
+   const stage=Number(g.round3_hint||1);
+   if((b.hintStage!==undefined&&Number(b.hintStage)!==stage)||(b.promptOrder!==undefined&&Number(b.promptOrder)!==g.current_item))return res.status(409).json({error:'Завдання або підказка змінилися. Онови екран.'});
+   if(!prompt||stage>=promptHints(prompt).length)return res.status(409).json({error:'Усі підказки вже відкриті'});
+   const updated=await sql.query("UPDATE team_games SET round3_hint=round3_hint+1 WHERE id=$1 AND phase='round3_play' AND round3_hint=$2 RETURNING id",[id,stage]);
+   if(!updated.length)return res.status(409).json({error:'Стан змінився. Онови екран.'});
    return res.json({ok:true});
   }
   if(action==='guess'){
@@ -73,21 +85,26 @@ export default async function handler(req,res){
    if(!team)return res.status(400).json({error:'Обери команду'});
    const [prompt]=await sql.query('SELECT id FROM team_absurd_prompts WHERE game_id=$1 AND prompt_order=$2',[id,g.current_item]);
    if(!prompt)return res.status(409).json({error:'Завдання не знайдено'});
-   const correct=b.correct===true,points=correct?3:-3;
-   if(correct){
-    const [updated]=await sql.query('UPDATE team_absurd_prompts SET solved_by_team_id=$3 WHERE game_id=$1 AND prompt_order=$2 AND solved_by_team_id IS NULL RETURNING id',[id,g.current_item,team.id]);
-    if(!updated)return res.status(409).json({error:'Відповідь уже зарахована'});
-    await sql.query("UPDATE team_games SET phase='round3_wait_next' WHERE id=$1 AND phase='round3_play'",[id]);
-   }
-   await sql.query('UPDATE team_game_teams SET round3_score=round3_score+$3 WHERE game_id=$1 AND id=$2',[id,team.id,points]);
-   await sql.query('INSERT INTO team_score_events(game_id,team_id,round_no,points,event_type,reference_id) VALUES($1,$2,3,$3,$4,$5)',[id,team.id,points,correct?'absurd_correct':'absurd_wrong',prompt.id]);
+   const stage=Number(g.round3_hint||1);
+   if(b.hintStage!==undefined&&Number(b.hintStage)!==stage)return res.status(409).json({error:'Підказка змінилася. Перевір поточні бали й повтори дію.'});
+   if(b.promptOrder!==undefined&&Number(b.promptOrder)!==g.current_item)return res.status(409).json({error:'Завдання змінилося. Онови екран.'});
+   const correct=b.correct===true,points=correct?hintPoints(stage):-2;
+   await sql.transaction([
+    sql.query("SELECT 1 / CASE WHEN status='playing' AND phase='round3_play' AND current_item=$2 AND round3_hint=$3 THEN 1 ELSE 0 END FROM team_games WHERE id=$1 FOR UPDATE",[id,g.current_item,stage]),
+    ...(correct?[
+     sql.query('UPDATE team_absurd_prompts SET solved_by_team_id=$3 WHERE game_id=$1 AND prompt_order=$2 AND solved_by_team_id IS NULL',[id,g.current_item,team.id]),
+     sql.query("UPDATE team_games SET phase='round3_wait_next' WHERE id=$1",[id])
+    ]:[]),
+    sql.query('UPDATE team_game_teams SET round3_score=round3_score+$3 WHERE game_id=$1 AND id=$2',[id,team.id,points]),
+    sql.query('INSERT INTO team_score_events(game_id,team_id,round_no,points,event_type,reference_id) VALUES($1,$2,3,$3,$4,$5)',[id,team.id,points,correct?'absurd_correct':'absurd_wrong',prompt.id])
+   ],{isolationLevel:'Serializable'});
    return res.json({ok:true});
   }
   if(action==='nextPrompt'){
    if(g.phase!=='round3_wait_next')return res.status(409).json({error:'Спочатку зарахуй правильну відповідь'});
    const [next]=await sql.query('SELECT id FROM team_absurd_prompts WHERE game_id=$1 AND prompt_order=$2',[id,g.current_item+1]);
    if(!next)return res.status(409).json({error:'Це був останній опис. Заверши гру.'});
-   await sql.query("UPDATE team_games SET current_item=current_item+1,phase='round3_play' WHERE id=$1 AND phase='round3_wait_next'",[id]);
+   await sql.query("UPDATE team_games SET current_item=current_item+1,phase='round3_play',round3_hint=1 WHERE id=$1 AND phase='round3_wait_next'",[id]);
    return res.json({ok:true});
   }
   if(action==='finishGame'){

@@ -24,3 +24,22 @@ New uploads go to Cloudinary. Existing Supabase image URLs stored in the databas
 ## Live updates
 
 The player, admin, and viewer screens refresh through the existing 1.5-second polling fallback. This replaces Supabase Realtime without changing the game flow.
+
+## Three associations and curated Codenames bank
+
+Authenticated team endpoints automatically apply the additive columns from
+`team_game_features.sql` once needed. Existing descriptions remain intact. New
+prompts store three associations in `hints_json`; old single descriptions remain
+readable and can be converted using the editor. The host chooses the team that
+starts round 1 immediately before starting the game.
+
+Round 3 keeps the current hint stage in the database. Only `revealHint` advances
+it; wrong answers never do. Awards are 5 / 3 / 1; every wrong answer is -2, with
+no attempt limit. Public responses contain only the already-revealed hints.
+
+`api/_codenames-data.js` is the active curated vocabulary. Before generating a new
+board, the API idempotently inserts its words and removes unreferenced retired
+words. Words referenced by old boards are retained for those boards but excluded
+from all future selections. The existing `used_at` tracking still prevents reuse
+of selected words. `team_codenames_seed.sql` mirrors the curated list for fresh
+installations; no manual import is required for an existing deployment.

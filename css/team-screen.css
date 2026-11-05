@@ -18,3 +18,7 @@
 .teamScreen #winner{font-size:clamp(24px,3.5vw,44px);font-weight:800;margin:32px 0 0}
 .teamScreen #error:empty,.teamScreen #winner:empty{display:none}
 @media(max-width:600px){.teamScreen .teamStage{width:100%;padding:24px 14px}.teamScreen #round{font-size:22px}}
+
+.teamScreen .teamStage[data-mode="associations"]{display:grid;align-content:center;min-height:100svh}
+.teamScreen .teamStage[data-mode="associations"] #round{font-size:clamp(26px,3.5vw,44px);margin:0 0 32px}
+.teamScreen .teamStage[data-mode="associations"] #word{font-size:clamp(36px,6.5vw,92px);line-height:1.3;max-width:1500px;margin:0 auto;white-space:pre-line}
