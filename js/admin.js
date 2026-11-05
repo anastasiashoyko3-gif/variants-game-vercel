@@ -155,7 +155,7 @@ async function showMenu(){
   currentGame=null;
   if(channel) supabase.removeChannel(channel);
   hide(loginCard);hide(gameCard);show(menuCard);hide(createPanel);
-  await Promise.all([loadGames(),loadSets()]);
+  await Promise.all([loadGames(),loadSets(),loadTeamGames()]);
 }
 
 async function loadGames(){
@@ -958,3 +958,37 @@ function renderFinishedAdminScreen(){
 }
 
 
+
+async function loadTeamGames(){
+ const el=$('teamGamesList');if(!el)return;
+ try{
+  const res=await fetch('/api/team-game-admin',{credentials:'same-origin'});
+  if(!res.ok)throw Error('Не вдалося завантажити командні ігри');
+  const data=await res.json();
+  el.replaceChildren();
+  if(!data.games?.length){el.textContent='Командних ігор поки немає';return}
+  for(const g of data.games){
+   const item=document.createElement('div');item.className='gameItem';
+   const info=document.createElement('div'),title=document.createElement('h3'),status=document.createElement('p');
+   title.textContent=g.title;status.className='muted';status.textContent='Командна гра · '+g.status;
+   info.append(title,status);
+   const actions=document.createElement('div');actions.className='actions';
+   const open=document.createElement('button');open.textContent='Відкрити';open.onclick=()=>location.href='/team-game-setup.html?gameId='+encodeURIComponent(g.id);
+   const restart=document.createElement('button');restart.className='secondary';restart.textContent='Почати заново';restart.onclick=async()=>{
+    if(!confirm('Скинути всі бали та проходження гри «'+g.title+'»? Завдання залишаться.'))return;
+    try{
+     const result=await fetch('/api/team-game-admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'restart',gameId:g.id})});
+     if(!result.ok)throw Error((await result.json()).error||'Помилка');
+     await loadTeamGames();
+    }catch(e){alert(e.message)}
+   };
+   const del=document.createElement('button');del.className='danger';del.textContent='Видалити';del.onclick=async()=>{
+    if(!confirm('Назавжди видалити «'+g.title+'»?'))return;
+    const result=await fetch('/api/team-game-admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',gameId:g.id})});
+    if(!result.ok)return alert((await result.json()).error||'Помилка');
+    await loadTeamGames();
+   };
+   actions.append(open,restart,del);item.append(info,actions);el.append(item);
+  }
+ }catch(e){el.textContent=e.message}
+}
