@@ -7,7 +7,7 @@ export default async function handler(req,res){
  if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({error:'Невірний номер гри'});
  const admin=isTeamAdmin(req) && !req.query.code,sql=getDb();
  try{
-  const games=await sql.query('SELECT id,title,status,current_round,phase,active_team_id,round_deadline,round_paused_seconds,invite_code FROM team_games WHERE id=$1',[id]);
+  const games=await sql.query('SELECT id,title,status,current_round,phase,active_team_id,current_item,round_deadline,round_paused_seconds,invite_code FROM team_games WHERE id=$1',[id]);
   if(!games.length)return res.status(404).json({error:'Гру не знайдено'});
   const g=games[0];
   if(!admin && String(req.query.code||'')!==g.invite_code)return res.status(403).json({error:'Потрібен код гри'});

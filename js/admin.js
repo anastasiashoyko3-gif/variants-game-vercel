@@ -1,4 +1,5 @@
-﻿import {
+﻿import {openTeamGame, closeTeamAdmin, configureTeamAdmin} from './team-admin.js';
+import {
   supabase, makeCode, escapeHtml, avatarHtml, hostAvatarHtml,
   TOTAL_QUESTIONS, ANSWER_SECONDS, VOTE_SECONDS, roundNo, nowSec,
   shuffle, safeJson, uploadPublicFile
@@ -51,12 +52,17 @@ async function copyInvite(linkId, buttonId){
 }
 
 
+configureTeamAdmin(showMenu);
 checkAdminSession();
 toggleLettersSetup();
 
 function toggleLettersSetup(){
   if(!$('gameMode')||!$('lettersSetup'))return;
-  $('lettersSetup').classList.toggle('hidden',$('gameMode').value!=='letters');
+  const mode=$('gameMode').value;
+  $('lettersSetup').classList.toggle('hidden',mode!=='letters');
+  $('teamCreateFields').classList.toggle('hidden',mode!=='teams');
+  $('legacyCreateFields').classList.toggle('hidden',mode==='teams');
+  $('legacyAvatarField').classList.toggle('hidden',mode==='teams');
 }
 
 function defaultWordConfig(){
@@ -141,6 +147,8 @@ async function checkAdminSession(){
     if(data.ok){
       localStorage.setItem('admin_ok','1');
       await showMenu();
+      const teamId=new URLSearchParams(location.search).get('gameId');
+      if(teamId&&/^\d+$/.test(teamId))await openInlineTeamGame(Number(teamId));
       return;
     }
   }catch{}
@@ -152,6 +160,7 @@ async function checkAdminSession(){
 }
 
 async function showMenu(){
+  closeTeamAdmin();
   currentGame=null;
   if(channel) supabase.removeChannel(channel);
   hide(loginCard);hide(gameCard);show(menuCard);hide(createPanel);
@@ -187,6 +196,15 @@ function renderSets(){
 }
 
 $('createGameBtn').onclick=async()=>{
+  if($('gameMode').value==='teams'){
+    $('createGameBtn').disabled=true;
+    try{
+      const res=await fetch('/api/team-game-admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',title:$('gameTitle').value,teams:[1,2].map(i=>({name:$('newTeam'+i).value.trim()}))})});
+      const data=await res.json();if(!res.ok)throw Error(data.error||'Не вдалося створити гру');
+      await openInlineTeamGame(data.game.id);
+    }catch(e){alert(e.message)}finally{$('createGameBtn').disabled=false}
+    return;
+  }
   const title=$('gameTitle').value.trim()||'Гра Варіанти';
   const game_password=$('gamePassword').value.trim()||'game123';
   let host_avatar=$('hostAvatar').value.trim()||'👑';
@@ -973,7 +991,7 @@ async function loadTeamGames(){
    title.textContent=g.title;status.className='muted';status.textContent='Командна гра · '+g.status;
    info.append(title,status);
    const actions=document.createElement('div');actions.className='actions';
-   const open=document.createElement('button');open.textContent='Відкрити';open.onclick=()=>location.href='/team-game-setup.html?gameId='+encodeURIComponent(g.id);
+   const open=document.createElement('button');open.textContent='Відкрити';open.onclick=()=>openInlineTeamGame(g.id).catch(e=>alert(e.message));
    const restart=document.createElement('button');restart.className='secondary';restart.textContent='Почати заново';restart.onclick=async()=>{
     if(!confirm('Скинути всі бали та проходження гри «'+g.title+'»? Завдання залишаться.'))return;
     try{
@@ -991,4 +1009,10 @@ async function loadTeamGames(){
    actions.append(open,restart,del);item.append(info,actions);el.append(item);
   }
  }catch(e){el.textContent=e.message}
+}
+
+async function openInlineTeamGame(id){
+ await openTeamGame(id);
+ currentGame=null;if(channel)supabase.removeChannel(channel);
+ hide(menuCard);hide(createPanel);hide(gameCard);hide(loginCard);
 }

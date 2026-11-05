@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="uk">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Адмінка — Варіанти</title><link rel="stylesheet" href="/css/style.css?v=dot-led-5"/></head>
 <body>
@@ -17,14 +17,15 @@
 <div class="createPanel hidden" id="createPanel">
 <h2>Нова гра</h2>
 <input id="gameTitle" placeholder="Назва гри" value="Гра Варіанти"/>
-<input id="gamePassword" placeholder="Пароль для гравців" value="game123"/>
+<div id="legacyCreateFields"><input id="gamePassword" placeholder="Пароль для гравців" value="game123"/>
 <input id="hostAvatar" placeholder="Аватарка ведучої: 👑 або URL" value="👑"/>
-<label class="fieldLabel">Режим гри</label>
+</div><label class="fieldLabel">Режим гри</label>
 <select id="gameMode">
   <option value="variants">Варіанти</option>
   <option value="letters">Словесна гра</option>
   <option value="teams">Командна гра (3 раунди)</option>
 </select>
+<div id="teamCreateFields" class="grid2 hidden"><label>Перша команда<input id="newTeam1" value="Команда 1" maxlength="80"></label><label>Друга команда<input id="newTeam2" value="Команда 2" maxlength="80"></label></div>
 <div id="lettersSetup" class="lettersSetup hidden">
   <h3>Раунд 1: категорії</h3>
   <div class="miniGrid">
@@ -44,7 +45,7 @@
     <input id="drawWord5" placeholder="Слово 6" value="зрада"/>
   </div>
 </div>
-<label class="fileLabel">Фото ведучої з пристрою<input id="hostAvatarFile" type="file" accept="image/*"></label>
+<label id="legacyAvatarField" class="fileLabel">Фото ведучої з пристрою<input id="hostAvatarFile" type="file" accept="image/*"></label>
 <div class="actions"><button id="createGameBtn">Створити</button><button class="secondary" id="cancelCreateBtn">Скасувати</button></div>
 </div>
 
@@ -79,8 +80,39 @@
 <div id="revealPanel"></div>
 <section class="grid2"><div><h2>Гравці</h2><div id="playersList"></div></div><div><h2>Таблиця</h2><div id="scoreBoard"></div></div></section>
 </section>
+<section id="teamAdmin" class="hidden"><div class="actions hidden" id="editorToolbar"><button id="backToTeamGames" class="secondary">← До списку ігор</button><button id="startRound">Почати гру</button><button id="toggleEditor" class="secondary hidden">Редагувати завдання всіх раундів</button></div><section class="card hidden" id="editor"><div class="actions"><h2 id="editorTitle">Завдання гри</h2><button class="secondary" id="closeTeamEditor">Закрити редагування</button></div>
+<p class="muted">Раунд 1 · По одному слову на рядок для кожної команди.</p>
+<div class="grid2"><div><label id="wordsLabel1">Команда 1</label><textarea id="words1" rows="10" placeholder="сонце&#10;кіт&#10;кава"></textarea></div>
+<div><label id="wordsLabel2">Команда 2</label><textarea id="words2" rows="10" placeholder="літак&#10;дощ&#10;книга"></textarea></div></div>
+<h2>Раунд 2 · Кодові імена</h2><p class="muted">25 карток. Синя команда має 9 слів і ходить першою.</p>
+<p class="muted">Поле з банку слів генерується після раунду 1. Тоді ведуча обирає синю команду (9 карток, перший хід) та червону (8 карток).</p>
+<h2>Раунд 3 · Смішні описи</h2>
+<label>Опис<textarea id="description" placeholder="Рука тримати холодний камінь..."></textarea></label>
+<label>Правильна відповідь<input id="answer" placeholder="Телефон"></label>
+<div class="actions"><button class="secondary" id="addPrompt">Додати опис</button></div>
+<div id="prompts"></div><div class="actions"><button id="saveContent">Зберегти всі завдання</button></div>
+</section><section id="livePanel" class="card hidden"><div class="actions"><button id="backFromLive" class="secondary">← До списку ігор</button></div><h2 id="currentRoundTitle">Раунд 1 · Керування</h2>
+<p id="liveStatus" class="muted"></p><div id="liveTimer" class="timer">01:30</div>
+<p id="liveWord" class="question"></p>
+<div class="actions"><button id="startTimer" class="hidden">Запустити таймер · 01:30</button>
+<button id="correct" class="hidden">Зарахувати +1</button><button id="skip" class="secondary hidden">Не зарахувати</button>
+<button id="closeTime" class="secondary hidden">Завершити час</button>
+<button id="nextTeam" class="hidden">Запустити другу команду</button>
+<button id="finishRound" class="hidden">Завершити перший раунд</button></div>
+<div id="liveScores" class="grid2"></div>
+<div id="shareLinks" class="actions"></div><button class="secondary" id="restartTeamGame">Почати гру заново</button>
+<div id="round2Panel" class="hidden">
+<h2>Раунд 2 · Кодові імена</h2><div id="colorSelection"><p>Обери синю команду: 9 карток і перший хід. Інша команда буде червоною: 8 карток.</p><label>Синя команда<select id="blueTeam"><option value="">Обери команду</option></select></label></div><p id="round2Status"></p>
+<div id="round2Board" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px"></div>
+<div class="actions"><button id="round2Start">Згенерувати поле й почати раунд 2</button><button id="switchTeam">Передати хід іншій команді</button><button id="endRound2">Завершити раунд 2</button></div></div>
+<div id="round3Panel" class="hidden">
+<h2>Раунд 3 · Смішні описи</h2><p id="round3Description"></p><p id="round3Answer"></p>
+<div class="actions"><button id="round3Start">Почати раунд 3</button></div>
+<div id="guessButtons" class="actions"></div>
+<div class="actions"><button id="nextPrompt">Наступне слово</button><button id="finishGame">Завершити гру</button></div></div>
+<p id="winner"></p>
+<p class="muted">Слова бачить лише адмін. Для гравців і глядачів створюються окремі екрани.</p></section>
+<p id="message" class="muted" role="status"></p></section>
 </main>
 <script type="module" src="/js/admin.js?v=dot-led-5"></script>
-<script>document.getElementById('createGameBtn').addEventListener('click',function(e){if(document.getElementById('gameMode').value==='teams'){e.stopImmediatePropagation();location.href='/team-game-setup.html'}},true);</script></body></html>
-
-
+</body></html>
