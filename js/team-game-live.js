@@ -20,7 +20,7 @@ async function refresh(){
   if(g.current_round===2)for(const card of d.cards){
    const cell=document.createElement('div');cell.textContent=card.word;
    const colors={blue:'#9cc7ff',red:'#ffacbd',neutral:'#e5e1d9',black:'#43404b'};
-   cell.style.cssText='padding:clamp(18px,2.2vw,34px) 8px;min-height:clamp(65px,7vw,110px);display:flex;align-items:center;justify-content:center;border-radius:12px;text-align:center;overflow-wrap:anywhere;font-weight:800;font-size:clamp(16px,1.65vw,29px);line-height:1.15;background:'+(card.card_color?colors[card.card_color]:'#f3e8ff')+';color:'+(card.card_color==='black'?'white':'#251b33');
+   cell.style.cssText='padding:clamp(18px,2.2vw,34px) 8px;min-height:clamp(95px,8.5vw,155px);display:flex;align-items:center;justify-content:center;border-radius:12px;text-align:center;overflow-wrap:anywhere;font-weight:800;font-size:clamp(22px,2vw,36px);line-height:1.15;background:'+(card.card_color?colors[card.card_color]:'#f3e8ff')+';color:'+(card.card_color==='black'?'white':'#251b33');
    $('board').append(cell);
   }
   const a=Number(t[0].round1_score)+Number(t[0].round2_score)+Number(t[0].round3_score),b=Number(t[1].round1_score)+Number(t[1].round2_score)+Number(t[1].round3_score);
