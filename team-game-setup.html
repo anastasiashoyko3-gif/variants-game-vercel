@@ -9,7 +9,7 @@
 <div><label>Друга команда<input id="team2" value="Команда 2"></label><label>Колір<input id="color2" type="color" value="#bd5369"></label></div></div>
 <div class="actions"><button id="create">Створити гру</button><button class="secondary" id="refresh">Оновити список</button></div>
 <h2>Збережені командні ігри</h2><div id="games"></div></section>
-<div class="actions"><button id="toggleEditor" class="secondary hidden">Редагувати завдання всіх раундів</button></div><section class="card hidden" id="editor"><div class="actions"><h2 id="editorTitle">Завдання гри</h2><button class="secondary" id="closeTeamEditor">Закрити редагування</button></div>
+<div class="actions" id="editorToolbar"><button id="backToTeamGames" class="secondary">← До списку ігор</button><button id="toggleEditor" class="secondary hidden">Редагувати завдання всіх раундів</button></div><section class="card hidden" id="editor"><div class="actions"><h2 id="editorTitle">Завдання гри</h2><button class="secondary" id="closeTeamEditor">Закрити редагування</button></div>
 <p class="muted">Раунд 1 · По одному слову на рядок для кожної команди.</p>
 <div class="grid2"><div><label id="wordsLabel1">Команда 1</label><textarea id="words1" rows="10" placeholder="сонце&#10;кіт&#10;кава"></textarea></div>
 <div><label id="wordsLabel2">Команда 2</label><textarea id="words2" rows="10" placeholder="літак&#10;дощ&#10;книга"></textarea></div></div>
@@ -23,7 +23,7 @@
 <label>Правильна відповідь<input id="answer" placeholder="Телефон"></label>
 <div class="actions"><button class="secondary" id="addPrompt">Додати опис</button></div>
 <div id="prompts"></div><div class="actions"><button id="saveContent">Зберегти всі завдання</button></div>
-</section><section id="livePanel" class="card hidden"><h2 id="currentRoundTitle">Раунд 1 · Керування</h2>
+</section><section id="livePanel" class="card hidden"><div class="actions"><button id="backFromLive" class="secondary">← До списку ігор</button></div><h2 id="currentRoundTitle">Раунд 1 · Керування</h2>
 <p id="liveStatus" class="muted"></p><div id="liveTimer" class="timer">01:30</div>
 <p id="liveWord" class="question"></p>
 <div class="actions"><button id="startRound">Почати гру · 90 секунд</button>
