@@ -164,7 +164,10 @@ $('create').onclick=async()=>{
  }catch(e){message(e.message)}finally{$('create').disabled=false}
 };
 $('refresh').onclick=()=>refresh().catch(e=>message(e.message));
-refresh().catch(()=>{});
+refresh().then(()=>{
+ const id=new URLSearchParams(location.search).get('gameId');
+ if(id&&/^\\d+$/.test(id))openGame(Number(id)).catch(e=>message(e.message));
+}).catch(()=>{});
 
 function renderLater(data){
  const g=data.game,teams=data.teams;
