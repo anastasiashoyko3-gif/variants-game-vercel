@@ -13,6 +13,11 @@
 <p class="muted">Раунд 1 · По одному слову на рядок для кожної команди.</p>
 <div class="grid2"><div><label id="wordsLabel1">Команда 1</label><textarea id="words1" rows="10" placeholder="сонце&#10;кіт&#10;кава"></textarea></div>
 <div><label id="wordsLabel2">Команда 2</label><textarea id="words2" rows="10" placeholder="літак&#10;дощ&#10;книга"></textarea></div></div>
+<h2>Раунд 2 · Кодові імена</h2><p class="muted">25 карток. Синя команда має 9 слів і ходить першою.</p>
+<label>Синя команда<select id="blueTeam" style="display:block;width:100%;padding:14px;border-radius:16px;margin:12px 0;background:#f3e8ff;color:#251b33"></select></label>
+<button id="generateBoard" class="secondary">Згенерувати поле 5×5</button>
+<div id="board" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:16px 0"></div>
+<p class="muted">Кольори карток тут бачить тільки адмін. Для глядачів створимо окремий екран.</p>
 <h2>Раунд 3 · Смішні описи</h2>
 <label>Опис<textarea id="description" placeholder="Рука тримати холодний камінь..."></textarea></label>
 <label>Правильна відповідь<input id="answer" placeholder="Телефон"></label>
