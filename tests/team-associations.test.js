@@ -102,11 +102,13 @@ test('curated bank is large, removes unused household words and preserves saved 
  try{
   const f=await fixture(h),other=await fixture(h);
   await h.db.exec("INSERT INTO team_codenames_bank(word) VALUES('ложка'),('стілець')");
+  await h.db.exec("INSERT INTO team_codenames_bank(word,used_at) VALUES('венера',now())");
   const spoon=(await h.db.query("SELECT id FROM team_codenames_bank WHERE word='ложка'")).rows[0].id;
   await h.db.query("INSERT INTO team_codenames_cards(game_id,position,word_id,card_color) VALUES($1,0,$2,'blue')",[other.gameId,spoon]);
   await h.db.query("UPDATE team_games SET status='playing',phase='round1_done' WHERE id=$1",[f.gameId]);
   await f.call('team-play',{action:'round2Start',gameId:f.gameId,blueTeam:1});
   assert.equal((await h.db.query("SELECT id FROM team_codenames_bank WHERE word='стілець'")).rows.length,0);
+  assert.ok((await h.db.query("SELECT used_at FROM team_codenames_bank WHERE word='Венера'")).rows[0].used_at);
   assert.equal((await h.db.query('SELECT word_id FROM team_codenames_cards WHERE game_id=$1',[other.gameId])).rows[0].word_id,spoon);
   const details=await f.call('team-game-admin',{action:'details',gameId:f.gameId});assert.ok(details.cards.every(c=>CODENAMES_WORDS.includes(c.word)));
  }finally{await h.db.close()}
