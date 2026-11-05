@@ -12,7 +12,7 @@ async function refresh(){
   $('round').textContent=g.status==='finished'?'Фінал':g.current_round===1?'Раунд 1 · Асоціації':g.current_round===2?'Раунд 2 · Кодові імена':'Раунд 3 · Смішні описи';
   const active=t.find(x=>String(x.id)===String(g.active_team_id));
   $('status').textContent=g.status==='setup'?'Очікуємо початку гри':g.phase==='round1_done'?'Перший раунд завершено':g.phase==='round2_done'?'Другий раунд завершено':g.phase==='round3_wait_next'?'Правильно! Очікуємо наступний опис':g.status==='finished'?'Гру завершено':active?'Зараз грає: '+active.name:'';
-  show('timer',g.current_round===1&&g.status==='playing');
+  show('timer',g.current_round===1&&g.status==='playing'&&!roleToken);
   show('word',g.status==='playing'&&((g.current_round===1&&!!roleToken)||(g.current_round===3)));
   $('word').textContent=g.current_round===1?(d.activeWord||''):g.current_round===3?(d.prompt?.description||''):'';
   show('board',g.current_round===2&&g.status==='playing');
